@@ -141,7 +141,9 @@ def build_kpis(results):
             "value": m3["current_fy"],
             "previous": m3["previous_fy"],
             "format": "number",
-            "better": "lower",
+            # Shown as a neutral change (gray arrow, no Improved/Worsened), per
+            # explicit request: fewer people sheltered isn't clearly better.
+            "better": None,
             "description": (
                 "Unduplicated people who stayed in emergency shelter, Safe Haven, or "
                 "transitional housing at any point during the fiscal year."
