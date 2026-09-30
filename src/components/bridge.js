@@ -7,6 +7,7 @@ import * as Plot from "npm:@observablehq/plot";
 import {format as d3format} from "npm:d3-format";
 import {marked} from "npm:marked";
 import {html} from "npm:htl";
+import * as Inputs from "npm:@observablehq/inputs";
 import {resize} from "observablehq:stdlib";
 
 // Validated categorical palette (dataviz skill reference instance, light mode):
@@ -217,4 +218,33 @@ export function renderAbout(bridge) {
       ${sections.length ? html`<div class="bridge-about-terms">${sections.map((sec) => block(`### ${sec}`, "bridge-text bridge-about-term"))}</div>` : null}
     </div>`;
   })}</section>`;
+}
+
+// Loose matching for option names given in a URL: case, spaces and punctuation
+// are ignored, so ?tab=system-engagement or ?project=es-sh-th both work.
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const match = (options, value) => (value == null ? undefined : options.find((o) => slug(o) === slug(value)));
+
+/**
+ * The filter selects and the tab strip, starting from the dashboard's defaults
+ * unless `initial` names a valid {tab, household, project}. Filter values stay
+ * in the dashboard's own order (household, project) for result lookups; the
+ * page shows Project type first.
+ */
+export function bridgeInputs(bridge, initial = {}) {
+  const [householdFilter, projectFilter] = bridge.filters;
+  const tabNames = bridge.tabs.map((t) => t.name);
+  const household = Inputs.select(householdFilter.options, {label: "Household type", value: match(householdFilter.options, initial.household) ?? householdFilter.default});
+  const project = Inputs.select(projectFilter.options, {label: "Project type", value: match(projectFilter.options, initial.project) ?? projectFilter.default});
+  const tabs = Inputs.radio(tabNames, {value: match(tabNames, initial.tab) ?? tabNames[0]});
+  tabs.classList.add("bridge-tabs");
+  return {household, project, tabs, controls: html`<div class="bridge-controls">${project}${household}</div>`};
+}
+
+const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZone: "America/New_York", ...options});
+
+/** "Source data last updated … · Dashboard refreshed …", in Eastern time. */
+export function renderFootnote(bridge) {
+  const source = bridge.source_modified ? `Source data last updated ${eastern(bridge.source_modified, {dateStyle: "medium"})} · ` : "";
+  return html`<p class="bridge-footnote">${source}Dashboard refreshed ${eastern(bridge.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`;
 }

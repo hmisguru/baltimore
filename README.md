@@ -99,6 +99,21 @@ https://hmisguru.github.io/baltimore-kpis/data/spm.json has every figure. Top-le
 
 Projects with a funding record for grant **UNCGF** or **UNBFO** active at any point in the two fiscal years compared: 16 projects as of FY2026 (8 emergency shelters, 8 Street Outreach). For Measures 5.1 and 2, the filter only selects the starting group of people (MOHS shelter entrants; people who exited MOHS projects to permanent housing). Their prior homelessness or returns are then checked across the whole CoC, per HUD's System Performance Measures specs. The other measures follow the SPM dashboard's Project filter exactly.
 
+## Embedding the Bridge to Housing dashboard
+
+The full Bridge to Housing dashboard (the About panel, filters, all five tabs, and the "Source data last updated" line, without this site's page title) can go on another site as an iframe plus one script tag:
+
+```html
+<iframe src="https://hmisguru.github.io/baltimore-kpis/embed/bridge"
+  title="Bridge to Housing Dashboard"
+  width="100%" height="1600" style="border:0"></iframe>
+<script type="module" src="https://hmisguru.github.io/baltimore-kpis/bridge-embed.js"></script>
+```
+
+The script resizes the iframe to fit the dashboard whenever a visitor switches tabs or filters, or the page width changes, so there's no inner scrollbar or blank space. It only accepts size messages from this site, and one script tag handles any number of these iframes on a page. Without it, the iframe keeps the fixed height and scrolls inside.
+
+Optional URL parameters pick the starting tab and filters: `?tab=demographics`, `?project=rrh`, `?household=adults-only` (combine with `&`). Case, spaces and punctuation don't matter, so `?tab=system-engagement` and `?project=es-sh-th` work. Unrecognized values fall back to the defaults.
+
 ## How it works
 
 - `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit. `sql/m7_exits_to_ph.sql` is generated from the 7a.1 and 7b.1 copies: each measure's logic is unchanged, and only the final unduplicated count of people exiting either to permanent housing is added.

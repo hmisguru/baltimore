@@ -32,6 +32,7 @@ export default {
   // and one iframe page per KPI plus one for the full grid.
   dynamicPaths: [
     "/kpis.js",
+    "/bridge-embed.js",
     "/data/spm.json",
     "/embed/all",
     ...kpiIds.map((id) => `/embed/${id}`)
