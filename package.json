@@ -1,0 +1,26 @@
+{
+  "name": "baltimore-kpis",
+  "version": "0.0.0",
+  "scripts": {
+    "clean": "rm -rf src/.observablehq/cache",
+    "build": "observable build",
+    "dev": "observable preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hmisguru/baltimore-kpis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hmisguru/baltimore-kpis/issues"
+  },
+  "homepage": "https://github.com/hmisguru/baltimore-kpis#readme",
+  "devDependencies": {
+    "@observablehq/framework": "^1.13.4"
+  },
+  "private": true,
+  "type": "module",
+  "description": "Embeddable HUD System Performance Measure KPIs for the Baltimore City CoC",
+  "engines": {
+    "node": ">=18"
+  }
+}
