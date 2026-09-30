@@ -12,7 +12,7 @@ const spm = FileAttachment("./data/spm.json").json();
 <p class="lede">Key HUD System Performance Measures for the Baltimore City Continuum of Care (MD-501), <b>${spm.fiscal_year.label}</b> compared with ${spm.previous_fiscal_year.label}.</p>
 
 ```js
-display(renderKpiGrid(spm, undefined, {footer: false}));
+display(renderKpiGrid(spm, undefined, {toggle: true}));
 ```
 
 <div class="note">

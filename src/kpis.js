@@ -27,8 +27,10 @@ export async function KPI(id, options) {
   return renderKpi(d, findKpi(d, id), options);
 }
 
-/** A responsive grid of KPI tiles; all of them when ids is omitted. */
+/**
+ * A responsive grid of KPI tiles; all of them when ids is omitted. Add
+ * {toggle: true} to show a "MOHS-funded projects only" switch above it.
+ */
 export async function KPIGrid(ids, options) {
-  const d = scopeData(await spm, options);
-  return renderKpiGrid(d, ids ?? d.kpis.map((k) => k.id), options);
+  return renderKpiGrid(await spm, ids, options);
 }

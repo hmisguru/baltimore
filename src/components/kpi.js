@@ -92,11 +92,79 @@ const CSS = `
     align-content: start;
   }
 }
+.bkpi-grid-wrapper {
+  --bkpi-switch-text: #161616;
+  --bkpi-switch-off: #8a8391;
+  --bkpi-switch-on: #60397c;
+  --bkpi-switch-focus: #8837ef;
+  --bkpi-footer-text: #4f4a57;
+  --bkpi-switch-thumb: #ffffff;
+}
+.bkpi-grid-wrapper[data-theme="dark"] {
+  --bkpi-switch-text: #ffffff;
+  --bkpi-switch-off: #8a7f96;
+  --bkpi-switch-on: #fabe21;
+  --bkpi-switch-focus: #fabe21;
+  --bkpi-footer-text: #d9cfe3;
+  --bkpi-switch-thumb: #2f1c3d;
+}
+@media (prefers-color-scheme: dark) {
+  .bkpi-grid-wrapper[data-theme="auto"] {
+    --bkpi-switch-text: #ffffff;
+    --bkpi-switch-off: #8a7f96;
+    --bkpi-switch-on: #fabe21;
+    --bkpi-switch-focus: #fabe21;
+    --bkpi-footer-text: #d9cfe3;
+  --bkpi-switch-thumb: #2f1c3d;
+  }
+}
+.bkpi-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 16px; }
+.bkpi-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--bkpi-switch-text);
+  font-family: var(--bkpi-font, "proxima-nova", "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-size: 15px;
+  cursor: pointer;
+}
+.bkpi-switch:focus-visible { outline: 2px solid var(--bkpi-switch-focus); outline-offset: 4px; border-radius: 4px; }
+.bkpi-switch-track {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--bkpi-switch-off);
+  transition: background-color 0.15s;
+}
+.bkpi-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bkpi-switch-thumb);
+  transition: transform 0.15s;
+}
+.bkpi-switch[aria-checked="true"] .bkpi-switch-track { background: var(--bkpi-switch-on); }
+.bkpi-switch[aria-checked="true"] .bkpi-switch-thumb { transform: translateX(20px); }
+@media (prefers-reduced-motion: reduce) {
+  .bkpi-switch-track, .bkpi-switch-thumb { transition: none; }
+}
+@media (forced-colors: active) {
+  .bkpi-switch-track { border: 1px solid ButtonText; }
+  .bkpi-switch[aria-checked="true"] .bkpi-switch-track { background: Highlight; }
+}
 .bkpi-grid-footer {
   margin-top: 12px;
   font-family: var(--bkpi-font, "proxima-nova", "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   font-size: 13px;
-  color: #4f4a57;
+  color: var(--bkpi-footer-text);
 }
 `;
 
@@ -224,22 +292,58 @@ export function renderKpi(data, kpi, {theme = "light", description = true, foote
 }
 
 /**
- * Render several KPI tiles in a responsive grid (all of them by default). The
- * fiscal year + source line is shown once below the grid rather than on every
- * tile; pass {footer: false} to omit it entirely.
+ * Render several KPI tiles in a responsive grid (all of them by default).
+ * Takes the full spm.json document, not a scopeData() result. The fiscal year
+ * + source line is shown once below the grid rather than on every tile; pass
+ * {footer: false} to omit it.
+ *
+ * @param {object} [options]  renderKpi options, plus:
+ * @param {boolean} [options.mohsFunded=false]  start with MOHS-funded projects only
+ * @param {boolean} [options.toggle=false]  show a "MOHS-funded projects only"
+ *   switch above the grid so viewers can flip between the two scopes
  */
-export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), {footer = true, ...options} = {}) {
+export function renderKpiGrid(data, ids, {footer = true, mohsFunded = false, toggle = false, ...options} = {}) {
   ensureStyle();
   const wrapper = el("div", "bkpi-grid-wrapper");
+  wrapper.dataset.theme = options.theme ?? "light";
   const grid = el("div", "bkpi-grid");
-  for (const id of ids) {
-    const tile = renderKpi(data, findKpi(data, id), {...options, footer: false});
-    // One parent-grid row per tile part, for the subgrid alignment above.
-    tile.style.gridRow = `span ${tile.children.length}`;
-    grid.append(tile);
+  const footerNode = el("div", "bkpi-grid-footer");
+  // Announce the scope change to screen readers when the switch flips.
+  footerNode.setAttribute("aria-live", "polite");
+
+  const render = (mohs) => {
+    const scoped = scopeData(data, {mohsFunded: mohs});
+    grid.replaceChildren(...(ids ?? scoped.kpis.map((d) => d.id)).map((id) => {
+      const tile = renderKpi(scoped, findKpi(scoped, id), {...options, footer: false});
+      // One parent-grid row per tile part, for the subgrid alignment above.
+      tile.style.gridRow = `span ${tile.children.length}`;
+      return tile;
+    }));
+    footerNode.textContent = footerText(scoped);
+  };
+
+  if (toggle) {
+    const button = el("button", "bkpi-switch");
+    button.type = "button";
+    button.setAttribute("role", "switch");
+    button.setAttribute("aria-checked", String(mohsFunded));
+    const track = el("span", "bkpi-switch-track");
+    track.setAttribute("aria-hidden", "true");
+    track.append(el("span", "bkpi-switch-thumb"));
+    button.append(track, el("span", "bkpi-switch-label", "MOHS-funded projects only"));
+    button.addEventListener("click", () => {
+      const on = button.getAttribute("aria-checked") !== "true";
+      button.setAttribute("aria-checked", String(on));
+      render(on);
+    });
+    const controls = el("div", "bkpi-controls");
+    controls.append(button);
+    wrapper.append(controls);
   }
+
+  render(mohsFunded);
   wrapper.append(grid);
-  if (footer) wrapper.append(el("div", "bkpi-grid-footer", footerText(data)));
+  if (footer) wrapper.append(footerNode);
   return wrapper;
 }
 
