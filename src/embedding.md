@@ -22,7 +22,7 @@ display(html`<pre><code>${`<iframe src="${base}embed/exits-to-permanent-housing"
   width="360" height="280" style="border:0"></iframe>`}</code></pre>`);
 ```
 
-Use `embed/all` for every KPI in a responsive grid (give it a height of about 640px on desktop). Add `?theme=light` or `?theme=dark` to the URL to override the viewer's system theme.
+Use `embed/all` for every KPI in a responsive grid (give it a height of about 640px on desktop). Tiles are light by default, to match baltimorecity.gov. Add `?theme=dark` for the purple dark variant, or `?theme=auto` to follow the viewer's system setting.
 
 Available KPI pages:
 
@@ -48,9 +48,9 @@ The module exports:
 - `KPI(id, options?)`: a single tile.
 - `data()`: the underlying numbers, for building your own display.
 
-Options: `{theme: "light" | "dark", description: false, footer: false}`.
+Options: `{theme: "light" | "dark" | "auto", description: false, footer: false}`. The default is `"light"`.
 
-To match your site's look, override these CSS custom properties on `.bkpi`: `--bkpi-font`, `--bkpi-surface`, `--bkpi-border`, `--bkpi-text`, `--bkpi-text-secondary`, `--bkpi-good`, `--bkpi-bad`.
+The tiles are styled to match baltimorecity.gov (Proxima Nova where the host page loads it, otherwise Nunito Sans). To adapt them to a different site, override these CSS custom properties on `.bkpi`: `--bkpi-font`, `--bkpi-surface`, `--bkpi-border`, `--bkpi-accent` (top stripe), `--bkpi-eyebrow` (measure label), `--bkpi-text`, `--bkpi-text-secondary`, `--bkpi-good`, `--bkpi-bad`, `--bkpi-neutral`.
 
 ## 3. Raw JSON
 

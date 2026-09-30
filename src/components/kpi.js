@@ -1,75 +1,101 @@
 // KPI stat tile: plain DOM, no dependencies, so it renders the same inside an
 // Observable page, an iframe, or a third-party site importing kpis.js.
 //
-// Host sites can restyle it through the --bkpi-* custom properties below, and
-// force a theme with the tile's data-theme="light"|"dark" attribute.
+// Styled to match baltimorecity.gov (where the tiles are embedded): its deep
+// purple / gold palette, pale blue-gray panels, 12px card radius, and Proxima
+// Nova (loaded by the host site's Typekit kit) with Nunito Sans as fallback.
+// Host sites can restyle it through the --bkpi-* custom properties below.
+//
+// Light by default, since baltimorecity.gov has no dark mode: a tile that
+// followed the OS setting would render dark on a light page. data-theme="dark"
+// forces the dark (purple) variant; data-theme="auto" follows the OS.
 
 const STYLE_ID = "bkpi-style";
 
+const DARK = `
+    --bkpi-surface: #2f1c3d;
+    --bkpi-border: #4a3659;
+    --bkpi-accent: #fabe21;
+    --bkpi-text: #ffffff;
+    --bkpi-text-secondary: #d9cfe3;
+    --bkpi-eyebrow: #fabe21;
+    --bkpi-good: #3cc43c;
+    --bkpi-bad: #ff7a7a;
+    --bkpi-neutral: #b3a8bf;`;
+
 const CSS = `
 .bkpi {
-  --bkpi-surface: #fcfcfb;
-  --bkpi-border: #e3e2de;
-  --bkpi-text: #0b0b0b;
-  --bkpi-text-secondary: #52514e;
-  --bkpi-good: #0ca30c;
+  --bkpi-surface: #f4fafb;
+  --bkpi-border: #d9e7ea;
+  --bkpi-accent: #fabe21;
+  --bkpi-text: #161616;
+  --bkpi-text-secondary: #4f4a57;
+  --bkpi-eyebrow: #60397c;
+  --bkpi-good: #0a8a0a;
   --bkpi-bad: #d03b3b;
-  --bkpi-neutral: #8a8984;
+  --bkpi-neutral: #77737e;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  padding: 16px 20px;
+  padding: 20px 24px;
   border: 1px solid var(--bkpi-border);
-  border-radius: 8px;
+  border-top: 4px solid var(--bkpi-accent);
+  border-radius: 12px;
   background: var(--bkpi-surface);
   color: var(--bkpi-text);
-  font-family: var(--bkpi-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--bkpi-font, "proxima-nova", "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   line-height: 1.3;
 }
-@media (prefers-color-scheme: dark) {
-  .bkpi:where(:not([data-theme="light"])) {
-    --bkpi-surface: #1a1a19;
-    --bkpi-border: #3a3936;
-    --bkpi-text: #ffffff;
-    --bkpi-text-secondary: #c3c2b7;
-    --bkpi-good: #0ca30c;
-    --bkpi-bad: #e25c5c;
-  }
+.bkpi[data-theme="dark"] {${DARK}
 }
-.bkpi[data-theme="dark"] {
-  --bkpi-surface: #1a1a19;
-  --bkpi-border: #3a3936;
-  --bkpi-text: #ffffff;
-  --bkpi-text-secondary: #c3c2b7;
-  --bkpi-good: #0ca30c;
-  --bkpi-bad: #e25c5c;
+@media (prefers-color-scheme: dark) {
+  .bkpi[data-theme="auto"] {${DARK}
+  }
 }
 .bkpi * { box-sizing: border-box; }
 .bkpi-measure {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--bkpi-text-secondary);
+  color: var(--bkpi-eyebrow);
 }
-.bkpi-title { margin: 0; font-size: 15px; font-weight: 600; }
-.bkpi-value { font-size: 40px; font-weight: 600; line-height: 1.1; }
-.bkpi-unit { font-size: 18px; font-weight: 500; color: var(--bkpi-text-secondary); margin-left: 4px; }
-.bkpi-delta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14px; }
-.bkpi-arrow { font-size: 12px; }
+.bkpi-title { margin: 0; font-family: inherit; font-size: 18px; font-weight: 400; line-height: 1.3; color: var(--bkpi-text); }
+.bkpi-value { font-size: 44px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
+.bkpi-unit { font-size: 20px; font-weight: 400; color: var(--bkpi-text-secondary); margin-left: 4px; }
+.bkpi-delta { display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; gap: 4px 8px; font-size: 15px; }
+.bkpi-arrow { font-size: 13px; }
 .bkpi-delta[data-status="improved"] .bkpi-arrow { color: var(--bkpi-good); }
 .bkpi-delta[data-status="worsened"] .bkpi-arrow { color: var(--bkpi-bad); }
 .bkpi-delta[data-status="unchanged"] .bkpi-arrow { color: var(--bkpi-neutral); }
-.bkpi-status { font-weight: 600; }
+.bkpi-status { font-weight: 700; }
 .bkpi-change { color: var(--bkpi-text-secondary); }
-.bkpi-description { margin: 4px 0 0; font-size: 13px; color: var(--bkpi-text-secondary); }
-.bkpi-footer { margin-top: auto; padding-top: 8px; font-size: 12px; color: var(--bkpi-text-secondary); }
+.bkpi-description { margin: 4px 0 0; font-size: 14px; line-height: 1.4; color: var(--bkpi-text-secondary); }
+.bkpi-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--bkpi-border); font-size: 12px; color: var(--bkpi-text-secondary); }
 .bkpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 16px;
+}
+/* In a grid, each tile's parts (label, title, value, change, description)
+   become rows of the parent grid via subgrid, so they line up across tiles
+   in the same row even when titles wrap to different lengths. Browsers
+   without subgrid fall back to the tile's normal stacked layout. */
+@supports (grid-template-rows: subgrid) {
+  .bkpi-grid > .bkpi {
+    display: grid;
+    grid-template-rows: subgrid;
+    row-gap: 8px;
+    align-content: start;
+  }
+}
+.bkpi-grid-footer {
+  margin-top: 12px;
+  font-family: var(--bkpi-font, "proxima-nova", "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-size: 13px;
+  color: #4f4a57;
 }
 `;
 
@@ -142,14 +168,14 @@ function formatFiscalYear(fy) {
  * @param {object} data   the parsed spm.json document
  * @param {object} kpi    one entry of data.kpis
  * @param {object} [options]
- * @param {"light"|"dark"} [options.theme]  force a theme (default: follows OS)
+ * @param {"light"|"dark"|"auto"} [options.theme="light"]  "auto" follows the OS
  * @param {boolean} [options.description=true]  show the one-line definition
  * @param {boolean} [options.footer=true]  show fiscal year + source line
  */
-export function renderKpi(data, kpi, {theme, description = true, footer = true} = {}) {
+export function renderKpi(data, kpi, {theme = "light", description = true, footer = true} = {}) {
   ensureStyle();
   const tile = el("article", "bkpi");
-  if (theme) tile.dataset.theme = theme;
+  tile.dataset.theme = theme;
   tile.dataset.kpi = kpi.id;
 
   tile.append(el("div", "bkpi-measure", `HUD ${kpi.measure}`));
@@ -177,12 +203,24 @@ export function renderKpi(data, kpi, {theme, description = true, footer = true} 
   return tile;
 }
 
-/** Render several KPI tiles in a responsive grid (all of them by default). */
-export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), options) {
+/**
+ * Render several KPI tiles in a responsive grid (all of them by default). The
+ * fiscal year + source line is shown once below the grid rather than on every
+ * tile; pass {footer: false} to omit it entirely.
+ */
+export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), {footer = true, ...options} = {}) {
   ensureStyle();
+  const wrapper = el("div", "bkpi-grid-wrapper");
   const grid = el("div", "bkpi-grid");
-  for (const id of ids) grid.append(renderKpi(data, findKpi(data, id), options));
-  return grid;
+  for (const id of ids) {
+    const tile = renderKpi(data, findKpi(data, id), {...options, footer: false});
+    // One parent-grid row per tile part, for the subgrid alignment above.
+    tile.style.gridRow = `span ${tile.children.length}`;
+    grid.append(tile);
+  }
+  wrapper.append(grid);
+  if (footer) wrapper.append(el("div", "bkpi-grid-footer", `${formatFiscalYear(data.fiscal_year)} · ${data.source}`));
+  return wrapper;
 }
 
 export function findKpi(data, id) {
