@@ -19,10 +19,10 @@ Works anywhere you can paste HTML, including most website builders and CMSs.
 ```js
 display(html`<pre><code>${`<iframe src="${base}embed/exits-to-permanent-housing"
   title="Exits to permanent housing"
-  width="360" height="280" style="border:0"></iframe>`}</code></pre>`);
+  width="360" height="340" style="border:0"></iframe>`}</code></pre>`);
 ```
 
-Use `embed/all` for every KPI in a responsive grid (give it a height of about 640px on desktop). Tiles are light by default, to match baltimorecity.gov. Add `?theme=dark` for the purple dark variant, or `?theme=auto` to follow the viewer's system setting.
+Use `embed/all` for every KPI in a responsive grid (give it a height of about 680px on desktop, or 630px without the switch; it needs more on narrower screens, where the tiles stack). Tiles are light by default, to match baltimorecity.gov. Add `?theme=dark` for the purple dark variant, or `?theme=auto` to follow the viewer's system setting.
 
 Available KPI pages:
 
