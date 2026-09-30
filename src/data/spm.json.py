@@ -85,8 +85,6 @@ def main():
     m3 = pick(results["m3"], "bucket", "Total (Unduplicated)")
     m5 = pick(results["m5"], "row_label", "Newly homeless (no prior activity)")
     m7a_universe = pick(results["m7a1"], "row_label", "Universe: persons who exit Street Outreach")
-    m7a_rate = pick(results["m7a1"], "row_label", "% Successful exits")
-    m7b_rate = pick(results["m7b1"], "row_label", "% Successful exits")
     m7b_universe = pick(
         results["m7b1"], "row_label",
         "Universe: ES/SH/TH/PH-RRH leavers + other PH leavers without move-in",
@@ -116,11 +114,6 @@ def main():
             "previous": m2_prev["total_returns"],
             "format": "number",
             "unit": "people",
-            "rate": {
-                "value": m2_cur["pct_total"],
-                "previous": m2_prev["pct_total"],
-                "label": f"of {m2_cur['total_exited']:,} who exited to permanent housing",
-            },
             "better": "lower",
             "description": (
                 "People who exited to permanent housing two years before the fiscal year "
@@ -164,15 +157,12 @@ def main():
             "previous": int(m7a_universe["previous_fy"]),
             "format": "number",
             "unit": "people",
-            "rate": {
-                "value": m7a_rate["current_fy"],
-                "previous": m7a_rate["previous_fy"],
-                "label": "moved to shelter, temporary or institutional settings, or permanent housing",
-            },
-            "better": "higher",
+            # Neither direction is inherently better: fewer exits can mean fewer
+            # people needing outreach or less outreach contact.
+            "better": None,
             "description": (
-                "People who left Street Outreach during the fiscal year. The percentage is "
-                "HUD's successful placement rate for outreach."
+                "People who left Street Outreach during the fiscal year, whether to "
+                "shelter, housing, or another destination."
             ),
             "universe": int(m7a_universe["current_fy"]),
         },
@@ -184,11 +174,6 @@ def main():
             "previous": int(m7b_permanent["previous_fy"]),
             "format": "number",
             "unit": "people",
-            "rate": {
-                "value": m7b_rate["current_fy"],
-                "previous": m7b_rate["previous_fy"],
-                "label": f"of {int(m7b_universe['current_fy']):,} people leaving programs",
-            },
             "better": "higher",
             "description": (
                 "People leaving shelter, Safe Haven, transitional housing, or rapid "

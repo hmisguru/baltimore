@@ -65,13 +65,12 @@ const CSS = `
 .bkpi-title { margin: 0; font-family: inherit; font-size: 18px; font-weight: 400; line-height: 1.3; color: var(--bkpi-text); }
 .bkpi-value { font-size: 44px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
 .bkpi-unit { font-size: 20px; font-weight: 400; color: var(--bkpi-text-secondary); margin-left: 4px; }
-.bkpi-rate { font-size: 15px; color: var(--bkpi-text-secondary); }
-.bkpi-rate strong { font-weight: 700; color: var(--bkpi-text); }
 .bkpi-delta { display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; gap: 4px 8px; font-size: 15px; }
 .bkpi-arrow { font-size: 13px; }
 .bkpi-delta[data-status="improved"] .bkpi-arrow { color: var(--bkpi-good); }
 .bkpi-delta[data-status="worsened"] .bkpi-arrow { color: var(--bkpi-bad); }
-.bkpi-delta[data-status="unchanged"] .bkpi-arrow { color: var(--bkpi-neutral); }
+.bkpi-delta[data-status="unchanged"] .bkpi-arrow,
+.bkpi-delta[data-status="neutral"] .bkpi-arrow { color: var(--bkpi-neutral); }
 .bkpi-status { font-weight: 700; }
 .bkpi-change { color: var(--bkpi-text-secondary); }
 .bkpi-description { margin: 4px 0 0; font-size: 14px; line-height: 1.4; color: var(--bkpi-text-secondary); }
@@ -121,13 +120,6 @@ function formatValue(kpi) {
   }
 }
 
-// The figure Improved/Worsened is judged on: a KPI's rate when it has one
-// (e.g. % returning), since raw counts rise and fall with how many people were
-// served; otherwise the headline value itself.
-function comparedFigure(kpi) {
-  return kpi.rate ? {format: "percent", value: kpi.rate.value, previous: kpi.rate.previous, better: kpi.better} : kpi;
-}
-
 // Plain-language change vs. the prior year, e.g. "116 fewer than FY2025".
 function describeChange(kpi, previousLabel) {
   const diff = kpi.value - kpi.previous;
@@ -155,7 +147,8 @@ function statusOf(kpi) {
   // Treat changes that round to zero at display precision as unchanged.
   const epsilon = kpi.format === "percent" ? 0.05 : 0.5;
   if (Math.abs(diff) < epsilon) return "unchanged";
-  if (!kpi.better) return "unchanged";
+  // No better direction (e.g. Street Outreach exits): report the change only.
+  if (!kpi.better) return "neutral";
   return (diff < 0) === (kpi.better === "lower") ? "improved" : "worsened";
 }
 
@@ -173,18 +166,15 @@ function formatFiscalYear(fy) {
 }
 
 /**
- * Render one KPI tile. A KPI with a `rate` showcases its raw count, adds a
- * "16.9% of 1,713 ..." line beneath it, and judges its change on the rate.
+ * Render one KPI tile.
  * @param {object} data   the parsed spm.json document
  * @param {object} kpi    one entry of data.kpis
  * @param {object} [options]
  * @param {"light"|"dark"|"auto"} [options.theme="light"]  "auto" follows the OS
  * @param {boolean} [options.description=true]  show the one-line definition
  * @param {boolean} [options.footer=true]  show fiscal year + source line
- * @param {boolean} [options.placeholders=false]  render an empty rate row when
- *   the KPI has none, so tiles in a grid keep the same parts in the same rows
  */
-export function renderKpi(data, kpi, {theme = "light", description = true, footer = true, placeholders = false} = {}) {
+export function renderKpi(data, kpi, {theme = "light", description = true, footer = true} = {}) {
   ensureStyle();
   const tile = el("article", "bkpi");
   tile.dataset.theme = theme;
@@ -198,24 +188,16 @@ export function renderKpi(data, kpi, {theme = "light", description = true, foote
   if (unit) valueNode.append(el("span", "bkpi-unit", unit));
   tile.append(valueNode);
 
-  if (kpi.rate) {
-    const rate = el("div", "bkpi-rate");
-    rate.append(el("strong", null, `${oneDecimal.format(kpi.rate.value)}%`), ` ${kpi.rate.label}`);
-    tile.append(rate);
-  } else if (placeholders) {
-    tile.append(el("div", "bkpi-rate"));
-  }
-
-  const compared = comparedFigure(kpi);
-  if (compared.previous != null) {
-    const status = statusOf(compared);
+  if (kpi.previous != null) {
+    const status = statusOf(kpi);
     const delta = el("div", "bkpi-delta");
     delta.dataset.status = status;
-    const arrow = compared.value > compared.previous ? "▲" : compared.value < compared.previous ? "▼" : "●";
+    const arrow = kpi.value > kpi.previous ? "▲" : kpi.value < kpi.previous ? "▼" : "●";
     delta.append(el("span", "bkpi-arrow", arrow));
     delta.lastChild.setAttribute("aria-hidden", "true");
-    delta.append(el("span", "bkpi-status", {improved: "Improved", worsened: "Worsened", unchanged: "No change"}[status]));
-    delta.append(el("span", "bkpi-change", describeChange(compared, data.previous_fiscal_year.label)));
+    const label = {improved: "Improved", worsened: "Worsened", unchanged: "No change"}[status];
+    if (label) delta.append(el("span", "bkpi-status", label));
+    delta.append(el("span", "bkpi-change", describeChange(kpi, data.previous_fiscal_year.label)));
     tile.append(delta);
   }
 
@@ -234,7 +216,7 @@ export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), {footer = 
   const wrapper = el("div", "bkpi-grid-wrapper");
   const grid = el("div", "bkpi-grid");
   for (const id of ids) {
-    const tile = renderKpi(data, findKpi(data, id), {...options, footer: false, placeholders: true});
+    const tile = renderKpi(data, findKpi(data, id), {...options, footer: false});
     // One parent-grid row per tile part, for the subgrid alignment above.
     tile.style.gridRow = `span ${tile.children.length}`;
     grid.append(tile);
