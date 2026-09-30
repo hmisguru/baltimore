@@ -17,6 +17,7 @@ so_projects AS (
   FROM balhmiscsv.Project p
   WHERE p.ContinuumProject = 1
     AND p.ProjectType = 4
+    AND (@all_projects OR p.ProjectID IN UNNEST(@project_ids))
 ),
 exits AS (
   SELECT en.PersonalID, en.EnrollmentID, ex.ExitDate, ex.Destination, pe.period

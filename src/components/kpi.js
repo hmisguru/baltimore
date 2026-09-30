@@ -166,7 +166,24 @@ function formatFiscalYear(fy) {
 }
 
 /**
- * Render one KPI tile.
+ * Narrow the spm.json document to one project scope. By default every CoC
+ * project; with {mohsFunded: true}, only MOHS-funded projects (grants UNCGF
+ * and UNBFO), which the data loader computes as data.filters["mohs-funded"].
+ * Embedding sites choose the scope in code; there's no visible toggle.
+ */
+export function scopeData(data, {mohsFunded = false} = {}) {
+  if (!mohsFunded) return data;
+  const filter = data.filters?.["mohs-funded"];
+  if (!filter) throw new Error("This KPI data has no MOHS-funded figures yet");
+  return {...data, kpis: filter.kpis, scope_label: filter.label};
+}
+
+function footerText(data) {
+  return [formatFiscalYear(data.fiscal_year), data.scope_label, data.source].filter(Boolean).join(" · ");
+}
+
+/**
+ * Render one KPI tile. Pass data through scopeData() first to pick a scope.
  * @param {object} data   the parsed spm.json document
  * @param {object} kpi    one entry of data.kpis
  * @param {object} [options]
@@ -202,7 +219,7 @@ export function renderKpi(data, kpi, {theme = "light", description = true, foote
   }
 
   if (description) tile.append(el("p", "bkpi-description", kpi.description));
-  if (footer) tile.append(el("div", "bkpi-footer", `${formatFiscalYear(data.fiscal_year)} · ${data.source}`));
+  if (footer) tile.append(el("div", "bkpi-footer", footerText(data)));
   return tile;
 }
 
@@ -222,7 +239,7 @@ export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), {footer = 
     grid.append(tile);
   }
   wrapper.append(grid);
-  if (footer) wrapper.append(el("div", "bkpi-grid-footer", `${formatFiscalYear(data.fiscal_year)} · ${data.source}`));
+  if (footer) wrapper.append(el("div", "bkpi-grid-footer", footerText(data)));
   return wrapper;
 }
 

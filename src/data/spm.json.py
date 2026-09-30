@@ -4,6 +4,11 @@ Runs the queries in sql/ against BigQuery at build time and writes one small
 JSON document of CoC-wide aggregates to stdout. Nothing row-level ever leaves
 BigQuery, and no credentials reach the published site.
 
+Every KPI is computed twice: for all CoC projects (top-level "kpis"), and for
+MOHS-funded projects only (filters["mohs-funded"]["kpis"]), i.e. projects with
+a Funder record for grant UNCGF or UNBFO active at some point in the two fiscal
+years being compared. Embedding sites choose one; there's no visible toggle.
+
 Reports the most recent *complete* federal fiscal year (Oct 1 - Sep 30) covered
 by the latest HMIS CSV export, compared against the fiscal year before it.
 
@@ -25,16 +30,44 @@ SQL_DIR = Path(__file__).resolve().parents[2] / "sql"
 client = bigquery.Client(project=BQ_PROJECT_ID)
 
 
-def query(sql, report_start=None):
-    params = []
-    if report_start is not None:
-        params.append(bigquery.ScalarQueryParameter("report_start", "DATE", report_start))
-    job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params))
+# Grant IDs (Funder.GrantID) that define "MOHS-funded".
+MOHS_GRANT_IDS = ["UNCGF", "UNBFO"]
+
+
+def query(sql, params=()):
+    job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=list(params)))
     return [dict(row) for row in job.result()]
 
 
-def run_measure(filename, report_start):
-    return query((SQL_DIR / filename).read_text(), report_start)
+def run_measure(filename, report_start, project_ids=None):
+    """Run one measure; project_ids=None means every CoC project."""
+    return query((SQL_DIR / filename).read_text(), [
+        bigquery.ScalarQueryParameter("report_start", "DATE", report_start),
+        bigquery.ScalarQueryParameter("all_projects", "BOOL", project_ids is None),
+        bigquery.ArrayQueryParameter("project_ids", "INT64", project_ids or []),
+    ])
+
+
+def mohs_funded_projects(window_start, window_end):
+    """Projects with a MOHS grant (see MOHS_GRANT_IDS) active in the window."""
+    rows = query("""
+        SELECT DISTINCT p.ProjectID, p.ProjectName
+        FROM balhmiscsv.Funder f
+        JOIN balhmiscsv.Project p USING (ProjectID)
+        WHERE UPPER(TRIM(f.GrantID)) IN UNNEST(@grant_ids)
+          AND (f.DateDeleted IS NULL OR TRIM(f.DateDeleted) = '')
+          AND (f.StartDate IS NULL OR f.StartDate <= @window_end)
+          AND (f.EndDate IS NULL OR f.EndDate >= @window_start)
+        ORDER BY p.ProjectName
+    """, [
+        bigquery.ArrayQueryParameter("grant_ids", "STRING", MOHS_GRANT_IDS),
+        bigquery.ScalarQueryParameter("window_start", "DATE", window_start),
+        bigquery.ScalarQueryParameter("window_end", "DATE", window_end),
+    ])
+    if not rows:
+        # Publishing all-zero "MOHS-funded" KPIs would be worse than a failed build.
+        sys.exit(f"No projects found for grant IDs {MOHS_GRANT_IDS}; check Funder.GrantID")
+    return rows
 
 
 def pick(rows, label_field, label):
@@ -54,28 +87,8 @@ def fiscal_year(end_year):
     }
 
 
-def main():
-    export_end = query("SELECT MAX(ExportEndDate) AS d FROM balhmiscsv.Export")[0]["d"]
-    fy_end_year = export_end.year if export_end >= date(export_end.year, 9, 30) else export_end.year - 1
-    current, previous = fiscal_year(fy_end_year), fiscal_year(fy_end_year - 1)
-    cur_start, prev_start = date.fromisoformat(current["start"]), date.fromisoformat(previous["start"])
-
-    # Measures 1 and 2 report a single period, so they run once per fiscal year;
-    # the others already return Current FY and Previous FY columns in one pass.
-    jobs = {
-        "m1_cur": ("m1_length_of_time.sql", cur_start),
-        "m1_prev": ("m1_length_of_time.sql", prev_start),
-        "m2_cur": ("m2_returns.sql", cur_start),
-        "m2_prev": ("m2_returns.sql", prev_start),
-        "m3": ("m3_sheltered.sql", cur_start),
-        "m5": ("m5_first_time.sql", cur_start),
-        "m7a1": ("m7a1_street_outreach.sql", cur_start),
-        "m7b1": ("m7b1_placement.sql", cur_start),
-    }
-    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
-        futures = {key: pool.submit(run_measure, *args) for key, args in jobs.items()}
-        results = {key: f.result() for key, f in futures.items()}
-
+def build_kpis(results):
+    """Turn one scope's measure results into the list of KPI dicts."""
     m1_label = "Persons in ES-EE, ES-NbN, and SH"
     m1_cur = pick(results["m1_cur"], "row_label", m1_label)
     m1_prev = pick(results["m1_prev"], "row_label", m1_label)
@@ -182,6 +195,38 @@ def main():
             "universe": int(m7b_universe["current_fy"]),
         },
     ]
+    return kpis
+
+
+def main():
+    export_end = query("SELECT MAX(ExportEndDate) AS d FROM balhmiscsv.Export")[0]["d"]
+    fy_end_year = export_end.year if export_end >= date(export_end.year, 9, 30) else export_end.year - 1
+    current, previous = fiscal_year(fy_end_year), fiscal_year(fy_end_year - 1)
+    cur_start, prev_start = date.fromisoformat(current["start"]), date.fromisoformat(previous["start"])
+    mohs_projects = mohs_funded_projects(prev_start, date.fromisoformat(current["end"]))
+    scopes = {"all": None, "mohs-funded": [row["ProjectID"] for row in mohs_projects]}
+
+    # Measures 1 and 2 report a single period, so they run once per fiscal year;
+    # the others already return Current FY and Previous FY columns in one pass.
+    jobs = {
+        "m1_cur": ("m1_length_of_time.sql", cur_start),
+        "m1_prev": ("m1_length_of_time.sql", prev_start),
+        "m2_cur": ("m2_returns.sql", cur_start),
+        "m2_prev": ("m2_returns.sql", prev_start),
+        "m3": ("m3_sheltered.sql", cur_start),
+        "m5": ("m5_first_time.sql", cur_start),
+        "m7a1": ("m7a1_street_outreach.sql", cur_start),
+        "m7b1": ("m7b1_placement.sql", cur_start),
+    }
+    with ThreadPoolExecutor(max_workers=len(jobs) * len(scopes)) as pool:
+        futures = {
+            (scope, key): pool.submit(run_measure, filename, start, project_ids)
+            for scope, project_ids in scopes.items()
+            for key, (filename, start) in jobs.items()
+        }
+        results = {scope: {} for scope in scopes}
+        for (scope, key), future in futures.items():
+            results[scope][key] = future.result()
 
     json.dump(
         {
@@ -190,7 +235,15 @@ def main():
             "fiscal_year": current,
             "previous_fiscal_year": previous,
             "source": "Baltimore City Continuum of Care (MD-501) HMIS",
-            "kpis": kpis,
+            "kpis": build_kpis(results["all"]),
+            "filters": {
+                "mohs-funded": {
+                    "label": "MOHS-funded projects only",
+                    "grant_ids": MOHS_GRANT_IDS,
+                    "projects": [row["ProjectName"] for row in mohs_projects],
+                    "kpis": build_kpis(results["mohs-funded"]),
+                },
+            },
         },
         sys.stdout,
         indent=2,

@@ -17,6 +17,7 @@ entry_projects AS (
   FROM balhmiscsv.Project p
   WHERE p.ContinuumProject = 1
     AND p.ProjectType IN (0, 1, 2, 8)
+    AND (@all_projects OR p.ProjectID IN UNNEST(@project_ids))
 ),
 scan_projects AS (
   SELECT p.ProjectID

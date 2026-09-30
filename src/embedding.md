@@ -50,6 +50,12 @@ The module exports:
 
 Options: `{theme: "light" | "dark" | "auto", description: false, footer: false}`. The default is `"light"`.
 
+### MOHS-funded projects only
+
+Add `mohsFunded: true` to limit every figure to projects funded by the Mayor's Office of Homeless Services (grants UNCGF and UNBFO) instead of the whole CoC, for example `KPIGrid(undefined, {mohsFunded: true})`. For iframes, add `?mohs=1` to the URL (combine with a theme as `?mohs=1&theme=dark`). The tiles' source line then says "MOHS-funded projects only".
+
+A project counts as MOHS-funded if it had one of those grants at any point in the two fiscal years being compared. People are counted by what happened in those projects, but checks that look at a person's wider history, such as whether they'd been homeless before (Measure 5.1) or returned to homelessness (Measure 2), still search every CoC project.
+
 The tiles are styled to match baltimorecity.gov (Proxima Nova where the host page loads it, otherwise Nunito Sans). To adapt them to a different site, override these CSS custom properties on `.bkpi`: `--bkpi-font`, `--bkpi-surface`, `--bkpi-border`, `--bkpi-accent` (top stripe), `--bkpi-eyebrow` (measure label), `--bkpi-text`, `--bkpi-text-secondary`, `--bkpi-good`, `--bkpi-bad`, `--bkpi-neutral`.
 
 ## 3. Raw JSON

@@ -8,13 +8,16 @@ pager: false
 ---
 
 ```js
-import {findKpi, renderKpi} from "../components/kpi.js";
+import {findKpi, renderKpi, scopeData} from "../components/kpi.js";
 const spm = FileAttachment("../data/spm.json").json();
 ```
 
 ```js
-const theme = new URLSearchParams(location.search).get("theme") ?? undefined;
-display(renderKpi(spm, findKpi(spm, observable.params.kpi), {theme}));
+const params = new URLSearchParams(location.search);
+const theme = params.get("theme") ?? undefined;
+// ?mohs=1 limits the figures to MOHS-funded projects.
+const data = scopeData(spm, {mohsFunded: ["1", "true"].includes(params.get("mohs"))});
+display(renderKpi(data, findKpi(data, observable.params.kpi), {theme}));
 ```
 
 <style>

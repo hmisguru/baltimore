@@ -10,6 +10,7 @@ qualifying_projects AS (
   FROM balhmiscsv.Project p
   WHERE p.ContinuumProject = 1
     AND p.ProjectType IN (0, 1, 2, 3, 4, 8, 9, 10, 13)
+    AND (@all_projects OR p.ProjectID IN UNNEST(@project_ids))
 ),
 -- Unfiltered CoC-wide pool: per the programming specs' step 5a, the scan for a return
 -- to homelessness always covers every relevant project in the CoC, never just the

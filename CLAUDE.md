@@ -11,6 +11,12 @@ Public repo: embeddable HUD System Performance Measure KPIs for the Baltimore Ci
 - KPI ids are hardcoded in both the loader (`"id"` fields) and `observablehq.config.js` (`kpiIds`, used for the `/embed/<id>` dynamic paths). Keep the two lists in sync.
 - Auth: Application Default Credentials. In CI, the `GCP_SERVICE_ACCOUNT_JSON` repository secret is written to a temp file and pointed to by `GOOGLE_APPLICATION_CREDENTIALS`.
 
+## MOHS-funded scope
+
+- Per explicit request, embedding sites can limit every KPI to "MOHS-funded" projects: those with a `Funder` record whose `GrantID` is `UNCGF` or `UNBFO` (constant `MOHS_GRANT_IDS` in the loader) active at any point in the two fiscal years compared (previous FY start through current FY end). As of the FY2026 build that's 16 projects: 8 emergency shelters (UNCGF) and 8 Street Outreach projects (UNBFO). The build fails if the grant IDs match no projects, rather than publishing all-zero figures.
+- There's no visible toggle (per explicit choice): embedding code opts in with `{mohsFunded: true}` (`KPI`, `KPIGrid`, `data`) or `?mohs=1` on iframe URLs. The loader computes every KPI for both scopes, `kpis` (all) and `filters["mohs-funded"].kpis`; `scopeData()` in `kpi.js` picks one and adds "MOHS-funded projects only" to the footer.
+- The scope reuses the dashboard's own Project filter placement in each query, parameterized as `(@all_projects OR p.ProjectID IN UNNEST(@project_ids))` by `extract_sql.py`. One deliberate deviation (`UNFILTERED_CTES`): Measure 5.1's `scan_projects` stays CoC-wide, so "first-time" means no prior activity anywhere in the CoC. The dashboard narrows that scan to the filtered projects too, which counted 151 MOHS-shelter entrants with prior non-MOHS activity as first-time in FY2026 (1,605 vs. 1,454).
+
 ## Embedding surfaces (keep all three working)
 
 1. **Iframes**: `src/embed/[kpi].md` (one parameterized page per KPI) and `src/embed/all.md` (grid). Chrome-free (no header/footer/sidebar), `?theme=light|dark` override.
