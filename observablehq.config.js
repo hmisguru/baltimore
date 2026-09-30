@@ -26,7 +26,8 @@ export default {
   head: `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&display=swap">
 <style>:root { --serif: "Nunito Sans", system-ui, sans-serif; --sans-serif: "Nunito Sans", system-ui, sans-serif; --theme-foreground-focus: #60397c; }</style>`,
-  footer: "Source: Baltimore City Continuum of Care (MD-501) HMIS. Built with Observable Framework.",
+  // Set explicitly: when unset, Framework adds its own "Built with Observable" footer.
+  footer: "Source: Baltimore City Continuum of Care (MD-501) HMIS.",
   // Stable, unhashed URLs for embedding: the importable module, the raw JSON,
   // and one iframe page per KPI plus one for the full grid.
   dynamicPaths: [

@@ -12,7 +12,8 @@ query rather than once per combination.
 
 The dashboard reads baldashboard.performance_metrics, a view over a Google
 Sheets external table, so credentials need the Drive scope as well as
-BigQuery, and the service account must have access to the Sheet.
+BigQuery, and the service account must have access to the Sheet. The Sheet's
+Drive modified time is included as "source_modified" for the page footer.
 """
 
 import hashlib
@@ -25,11 +26,14 @@ from decimal import Decimal
 from pathlib import Path
 
 import google.auth
+from google.auth.transport.requests import AuthorizedSession
 import jinja2
 import yaml
 from google.cloud import bigquery
 
 BQ_PROJECT_ID = "baldash-508920"
+# The Google Sheets external table behind baldashboard.performance_metrics.
+SOURCE_TABLE = f"{BQ_PROJECT_ID}.baldashboard.sheet"
 DASHBOARD = Path(__file__).resolve().parents[2] / "bridge" / "balbridge.yml"
 SCOPES = [
     "https://www.googleapis.com/auth/bigquery",
@@ -58,6 +62,26 @@ def run(sql):
         "columns": [field.name for field in result.schema],
         "rows": [[json_value(v) for v in row.values()] for row in result],
     }
+
+
+def source_modified():
+    """When the source Sheet was last modified (ISO timestamp), or None.
+
+    Only feeds the footer, so any failure is a warning, not a failed build.
+    """
+    try:
+        uri = client.get_table(SOURCE_TABLE).external_data_configuration.source_uris[0]
+        sheet_id = uri.split("/spreadsheets/d/")[1].split("/")[0]
+        response = AuthorizedSession(credentials).get(
+            f"https://www.googleapis.com/drive/v3/files/{sheet_id}",
+            params={"fields": "modifiedTime", "supportsAllDrives": "true"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()["modifiedTime"]
+    except Exception as e:  # noqa: BLE001
+        print(f"warning: couldn't read the source Sheet's modified time: {e}", file=sys.stderr)
+        return None
 
 
 def main():
@@ -116,6 +140,7 @@ def main():
     json.dump(
         {
             "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "source_modified": source_modified(),
             "name": dashboard["name"],
             "description": dashboard.get("description"),
             "filters": filters,
