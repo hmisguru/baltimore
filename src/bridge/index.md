@@ -4,7 +4,7 @@ toc: false
 ---
 
 ```js
-import {renderNotes, renderTab} from "../components/bridge.js";
+import {renderAbout, renderTab} from "../components/bridge.js";
 const bridge = FileAttachment("../data/bridge.json").json();
 ```
 
@@ -13,6 +13,10 @@ const bridge = FileAttachment("../data/bridge.json").json();
   <h1>${bridge.name}</h1>
   <p class="bridge-lede">${bridge.description}</p>
 </div>
+
+```js
+display(renderAbout(bridge));
+```
 
 ```js
 const [householdFilter, projectFilter] = bridge.filters;
@@ -31,15 +35,6 @@ display(tabs);
 display(renderTab(bridge, tabValue, [householdValue, projectValue]));
 ```
 
-<details class="bridge-about">
-  <summary>About this dashboard</summary>
-
-```js
-display(renderNotes(bridge));
-```
-
-</details>
-
 ```js
 const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZone: "America/New_York", ...options});
 const sourceNote = bridge.source_modified ? `Source data last updated ${eastern(bridge.source_modified, {dateStyle: "medium"})} · ` : "";
@@ -51,7 +46,7 @@ display(html`<p class="bridge-footnote">${sourceNote}Dashboard refreshed ${easte
 #observablehq-main { max-width: 1280px; }
 .bridge-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
 .bridge-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bridge-purple); }
-.bridge-lede { margin: 0 0 1.2em; color: var(--bridge-muted); max-width: 70ch; }
+.bridge-lede { margin: 0 0 16px; color: var(--bridge-muted); max-width: 70ch; }
 .bridge-controls { display: flex; flex-wrap: wrap; gap: 8px 32px; margin-bottom: 8px; }
 .bridge-controls form { width: auto; }
 .bridge-controls label { font-weight: 600; }
@@ -77,8 +72,13 @@ display(html`<p class="bridge-footnote">${sourceNote}Dashboard refreshed ${easte
 .bridge-table th { vertical-align: bottom; font-size: 13px; padding: 4px 8px; border-bottom: 1px solid var(--bridge-border); }
 .bridge-table td { padding: 4px 8px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; }
 .bridge-table tbody tr:last-child td { border-bottom: 0; }
-.bridge-about { margin: 24px 0 8px; }
-.bridge-about summary { cursor: pointer; font-weight: 700; color: var(--bridge-deep); }
+.bridge-about { margin: 0 0 20px; padding: 16px 20px; background: #f3eef9; border: 1px solid #e0d4ee; border-left: 4px solid var(--bridge-purple); border-radius: 12px; }
+.bridge-about-note + .bridge-about-note { margin-top: 12px; }
+.bridge-about p { max-width: none; }
+.bridge-about-intro p { font-size: 16px; }
+.bridge-about-terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 32px; margin-top: 12px; }
+.bridge-about-term h3 { margin: 0 0 4px; font-size: 15px; color: var(--bridge-deep); }
+.bridge-about-term p { margin: 0; font-size: 15px; }
 .bridge-footnote { font-size: 13px; color: var(--bridge-muted); max-width: none; }
 @media (max-width: 760px) {
   .bridge-row { grid-template-columns: 1fr; }

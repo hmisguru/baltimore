@@ -201,6 +201,20 @@ export function renderTab(bridge, tabName, filterValues) {
   return html`<div class="bridge-tab">${tab.rows.map((row) => html`<div class="bridge-row">${row.map((w) => renderWidget(bridge, w, filterValues))}</div>`)}</div>`;
 }
 
-export function renderNotes(bridge) {
-  return html`<div>${bridge.notes.map((w) => renderText(w))}</div>`;
+// The dashboard's untabbed text notes, shown above the filters: each note's
+// opening text spans the panel, and its "### " sections (definitions) sit side
+// by side below it.
+export function renderAbout(bridge) {
+  return html`<section class="bridge-about" aria-label="About this dashboard">${bridge.notes.map((w) => {
+    const [intro, ...sections] = (w.content ?? "").split(/^### /m);
+    const block = (md, cls) => {
+      const div = html`<div class=${cls}>`;
+      div.innerHTML = marked.parse(md);
+      return div;
+    };
+    return html`<div class="bridge-about-note">
+      ${intro.trim() ? block(intro, "bridge-text bridge-about-intro") : null}
+      ${sections.length ? html`<div class="bridge-about-terms">${sections.map((sec) => block(`### ${sec}`, "bridge-text bridge-about-term"))}</div>` : null}
+    </div>`;
+  })}</section>`;
 }
