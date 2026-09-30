@@ -69,14 +69,15 @@ const CSS = `
 .bkpi-arrow { font-size: 13px; }
 .bkpi-delta[data-status="improved"] .bkpi-arrow { color: var(--bkpi-good); }
 .bkpi-delta[data-status="worsened"] .bkpi-arrow { color: var(--bkpi-bad); }
-.bkpi-delta[data-status="unchanged"] .bkpi-arrow { color: var(--bkpi-neutral); }
+.bkpi-delta[data-status="unchanged"] .bkpi-arrow,
+.bkpi-delta[data-status="neutral"] .bkpi-arrow { color: var(--bkpi-neutral); }
 .bkpi-status { font-weight: 700; }
 .bkpi-change { color: var(--bkpi-text-secondary); }
 .bkpi-description { margin: 4px 0 0; font-size: 14px; line-height: 1.4; color: var(--bkpi-text-secondary); }
 .bkpi-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--bkpi-border); font-size: 12px; color: var(--bkpi-text-secondary); }
 .bkpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 16px;
 }
 /* In a grid, each tile's parts (label, title, value, change, description)
@@ -113,9 +114,9 @@ const oneDecimal = new Intl.NumberFormat("en-US", {minimumFractionDigits: 1, max
 
 function formatValue(kpi) {
   switch (kpi.format) {
-    case "percent": return {value: oneDecimal.format(kpi.value), unit: "%"};
-    case "days": return {value: integer.format(kpi.value), unit: "days"};
-    default: return {value: integer.format(kpi.value), unit: ""};
+    case "percent": return {value: oneDecimal.format(kpi.value), unit: kpi.unit ?? "%"};
+    case "days": return {value: integer.format(kpi.value), unit: kpi.unit ?? "days"};
+    default: return {value: integer.format(kpi.value), unit: kpi.unit ?? ""};
   }
 }
 
@@ -146,7 +147,8 @@ function statusOf(kpi) {
   // Treat changes that round to zero at display precision as unchanged.
   const epsilon = kpi.format === "percent" ? 0.05 : 0.5;
   if (Math.abs(diff) < epsilon) return "unchanged";
-  if (!kpi.better) return "unchanged";
+  // No better direction (e.g. Street Outreach exits): report the change only.
+  if (!kpi.better) return "neutral";
   return (diff < 0) === (kpi.better === "lower") ? "improved" : "worsened";
 }
 
@@ -193,7 +195,8 @@ export function renderKpi(data, kpi, {theme = "light", description = true, foote
     const arrow = kpi.value > kpi.previous ? "▲" : kpi.value < kpi.previous ? "▼" : "●";
     delta.append(el("span", "bkpi-arrow", arrow));
     delta.lastChild.setAttribute("aria-hidden", "true");
-    delta.append(el("span", "bkpi-status", {improved: "Improved", worsened: "Worsened", unchanged: "No change"}[status]));
+    const label = {improved: "Improved", worsened: "Worsened", unchanged: "No change"}[status];
+    if (label) delta.append(el("span", "bkpi-status", label));
     delta.append(el("span", "bkpi-change", describeChange(kpi, data.previous_fiscal_year.label)));
     tile.append(delta);
   }

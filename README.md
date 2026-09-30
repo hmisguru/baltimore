@@ -4,15 +4,16 @@ Embeddable KPIs for the Baltimore City Continuum of Care (MD-501), built from HM
 
 ## KPIs
 
-Five HUD System Performance Measures, for the most recent complete federal fiscal year (Oct 1 – Sep 30) compared with the year before:
+Six HUD System Performance Measures, for the most recent complete federal fiscal year (Oct 1 – Sep 30) compared with the year before:
 
 | id | Measure | KPI |
 |---|---|---|
 | `length-of-time-homeless` | 1a | Average length of time homeless (ES + Safe Haven) |
-| `returns-to-homelessness` | 2 | % returning to homelessness within 2 years of exiting to permanent housing |
+| `returns-to-homelessness` | 2 | People returning to homelessness within 2 years of exiting to permanent housing |
 | `people-sheltered` | 3.2 | Unduplicated people in ES, Safe Haven, or TH |
 | `first-time-homeless` | 5.1 | People homeless for the first time (no activity in prior 24 months) |
-| `exits-to-permanent-housing` | 7b.1 | % of ES/SH/TH/RRH leavers exiting to permanent housing |
+| `street-outreach-exits` | 7a.1 | People exiting Street Outreach |
+| `exits-to-permanent-housing` | 7b.1 | People exiting ES/SH/TH/RRH to permanent housing |
 
 ## Embedding
 

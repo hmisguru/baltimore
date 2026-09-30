@@ -5,6 +5,7 @@ const kpiIds = [
   "returns-to-homelessness",
   "people-sheltered",
   "first-time-homeless",
+  "street-outreach-exits",
   "exits-to-permanent-housing"
 ];
 
