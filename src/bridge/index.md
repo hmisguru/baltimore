@@ -9,7 +9,7 @@ const bridge = FileAttachment("../data/bridge.json").json();
 ```
 
 <div class="bridge-header">
-  <p class="bridge-eyebrow">Prototype · Observable Framework</p>
+  <p class="bridge-eyebrow">Prototype</p>
   <h1>${bridge.name}</h1>
   <p class="bridge-lede">${bridge.description}</p>
 </div>
@@ -40,7 +40,11 @@ display(renderNotes(bridge));
 
 </details>
 
-<p class="bridge-footnote">Built from the Bridge to Housing DAC dashboard definition; figures were computed ${new Date(bridge.generated).toLocaleString("en-US", {dateStyle: "medium", timeStyle: "short"})}. Every filter combination is pre-computed, so changing a filter needs no new queries.</p>
+```js
+const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZone: "America/New_York", ...options});
+const sourceNote = bridge.source_modified ? `Source data last updated ${eastern(bridge.source_modified, {dateStyle: "medium"})} · ` : "";
+display(html`<p class="bridge-footnote">${sourceNote}Dashboard refreshed ${eastern(bridge.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`);
+```
 
 <style>
 :root { --bridge-purple: #60397c; --bridge-deep: #2f1c3d; --bridge-gold: #fabe21; --bridge-surface: #f4fafb; --bridge-border: #d9e7ea; --bridge-muted: #4f4a57; }
