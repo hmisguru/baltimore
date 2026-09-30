@@ -22,6 +22,7 @@ search the whole CoC for prior activity, the same way the dashboard's own
 Measure 2 always searches CoC-wide for returns.
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -49,6 +50,49 @@ PLACEHOLDER = "__REPORT_START__"
 PROJECT_PLACEHOLDER = "__PROJECT_FILTER__"
 RENDERED_FILTER = f"AND p.ProjectName IN ('{PROJECT_PLACEHOLDER}')"
 PARAM_FILTER = "AND (@all_projects OR p.ProjectID IN UNNEST(@project_ids))"
+
+
+# The "Exits to permanent housing" KPI counts people who exited Street Outreach
+# (Measure 7a.1) OR shelter/SH/TH/RRH (Measure 7b.1) to a permanent destination,
+# each person once. It's generated from those two extracted queries: each keeps
+# its own logic unchanged through its per-person `classified` CTE, and only the
+# final unduplicated count is new.
+COMBINED_PH_EXITS = ("m7_exits_to_ph.sql", "m7a1_street_outreach.sql", "m7b1_placement.sql")
+
+
+def ctes_through_classified(sql, prefix=""):
+    """The WITH-list of an extracted measure query, up to its `classified` CTE.
+
+    With a prefix, every CTE name is renamed (bounds -> b_bounds, ...) so two
+    queries' CTEs can share one WITH clause.
+    """
+    body = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--"))
+    end = body.index("\nremaining AS (")
+    ctes = body[:end].rstrip().rstrip(",")
+    if not ctes.startswith("WITH "):
+        sys.exit("Unexpected query shape: no leading WITH")
+    ctes = ctes[len("WITH "):]
+    if prefix:
+        for name in sorted(re.findall(r"^(\w+) AS \(", ctes, flags=re.M), key=len, reverse=True):
+            ctes = re.sub(rf"\b{name}\b", prefix + name, ctes)
+    return ctes
+
+
+def combined_ph_exits_sql(so_sql, b1_sql):
+    return (
+        "WITH " + ctes_through_classified(so_sql) + ",\n"
+        + ctes_through_classified(b1_sql, prefix="b_") + ",\n"
+        + """ph_exits AS (
+  SELECT period, PersonalID FROM classified WHERE bucket = 'permanent'
+  UNION ALL
+  SELECT period, PersonalID FROM b_classified WHERE bucket = 'permanent'
+)
+SELECT
+  COUNT(DISTINCT IF(period = 'Current FY', PersonalID, NULL)) AS current_fy,
+  COUNT(DISTINCT IF(period = 'Previous FY', PersonalID, NULL)) AS previous_fy
+FROM ph_exits
+"""
+    )
 
 
 def drop_cte_filter(sql, cte, filename):
@@ -94,6 +138,15 @@ def main(dashboard_path):
         )
         (SQL_DIR / filename).write_text(header + sql)
         print(f"wrote sql/{filename}")
+
+    out, so_file, b1_file = COMBINED_PH_EXITS
+    combined = combined_ph_exits_sql((SQL_DIR / so_file).read_text(), (SQL_DIR / b1_file).read_text())
+    (SQL_DIR / out).write_text(
+        f"-- Generated from sql/{so_file} (Measure 7a.1) and sql/{b1_file} (Measure 7b.1):\n"
+        "-- people exiting either to a permanent destination, each counted once.\n"
+        "-- Regenerate with scripts/extract_sql.py; do not edit by hand.\n" + combined
+    )
+    print(f"wrote sql/{out}")
 
 
 if __name__ == "__main__":
