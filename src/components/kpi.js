@@ -65,7 +65,7 @@ const CSS = `
 .bkpi-title { margin: 0; font-family: inherit; font-size: 18px; font-weight: 400; line-height: 1.3; color: var(--bkpi-text); }
 .bkpi-value { font-size: 44px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
 .bkpi-unit { font-size: 20px; font-weight: 400; color: var(--bkpi-text-secondary); margin-left: 4px; }
-.bkpi-delta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 15px; }
+.bkpi-delta { display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; gap: 4px 8px; font-size: 15px; }
 .bkpi-arrow { font-size: 13px; }
 .bkpi-delta[data-status="improved"] .bkpi-arrow { color: var(--bkpi-good); }
 .bkpi-delta[data-status="worsened"] .bkpi-arrow { color: var(--bkpi-bad); }
@@ -78,6 +78,18 @@ const CSS = `
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 16px;
+}
+/* In a grid, each tile's parts (label, title, value, change, description)
+   become rows of the parent grid via subgrid, so they line up across tiles
+   in the same row even when titles wrap to different lengths. Browsers
+   without subgrid fall back to the tile's normal stacked layout. */
+@supports (grid-template-rows: subgrid) {
+  .bkpi-grid > .bkpi {
+    display: grid;
+    grid-template-rows: subgrid;
+    row-gap: 8px;
+    align-content: start;
+  }
 }
 .bkpi-grid-footer {
   margin-top: 12px;
@@ -200,7 +212,12 @@ export function renderKpiGrid(data, ids = data.kpis.map((d) => d.id), {footer = 
   ensureStyle();
   const wrapper = el("div", "bkpi-grid-wrapper");
   const grid = el("div", "bkpi-grid");
-  for (const id of ids) grid.append(renderKpi(data, findKpi(data, id), {...options, footer: false}));
+  for (const id of ids) {
+    const tile = renderKpi(data, findKpi(data, id), {...options, footer: false});
+    // One parent-grid row per tile part, for the subgrid alignment above.
+    tile.style.gridRow = `span ${tile.children.length}`;
+    grid.append(tile);
+  }
   wrapper.append(grid);
   if (footer) wrapper.append(el("div", "bkpi-grid-footer", `${formatFiscalYear(data.fiscal_year)} · ${data.source}`));
   return wrapper;
