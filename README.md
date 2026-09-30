@@ -32,7 +32,7 @@ See the site's [embedding guide](https://hmisguru.github.io/baltimore-kpis/embed
 </script>
 ```
 
-To show MOHS-funded projects only (grants UNCGF and UNBFO), pass `{mohsFunded: true}` to `KPI`/`KPIGrid`, or add `?mohs=1` to an iframe URL.
+To show MOHS-funded projects only (grants UNCGF and UNBFO), pass `{mohsFunded: true}` to `KPI`/`KPIGrid`, or add `?mohs=1` to an iframe URL. To show a switch that lets visitors flip between the two, pass `{toggle: true}` to `KPIGrid` or add `?toggle=1` to the `embed/all` iframe URL.
 
 Raw numbers: https://hmisguru.github.io/baltimore-kpis/data/spm.json
 
