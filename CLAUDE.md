@@ -21,4 +21,4 @@ Public repo: embeddable HUD System Performance Measure KPIs for the Baltimore Ci
 
 ## Scheduling
 
-Monthly cron (3rd, 13:17 UTC), plus on push to `main` and manual dispatch. GitHub disables scheduled workflows in public repos after 60 days of no repo activity; the `keepalive` job re-enables the workflow via the API on each scheduled run to reset that clock.
+Monthly on the first Wednesday (13:17 UTC), plus on push to `main` and manual dispatch. Cron ORs day-of-month with day-of-week, so the schedule fires every Wednesday (`17 13 * * 3`) and a `schedule-gate` job skips `build`/`deploy` unless the UTC date is the 1st-7th; pushes and manual runs always build. GitHub disables scheduled workflows in public repos after 60 days of no repo activity; the `keepalive` job re-enables the workflow via the API on each scheduled run to reset that clock.
