@@ -13,7 +13,7 @@ Six HUD System Performance Measures, for the most recent complete federal fiscal
 | `people-sheltered` | 3.2 | Unduplicated people in ES, Safe Haven, or TH |
 | `first-time-homeless` | 5.1 | People homeless for the first time (no activity in prior 24 months) |
 | `street-outreach-exits` | 7a.1 | People exiting Street Outreach |
-| `exits-to-permanent-housing` | 7b.1 | People exiting ES/SH/TH/RRH to permanent housing |
+| `exits-to-permanent-housing` | 7a.1 + 7b.1 | People exiting Street Outreach or ES/SH/TH/RRH to permanent housing, each person counted once |
 
 ## Embedding
 
@@ -101,7 +101,7 @@ Projects with a funding record for grant **UNCGF** or **UNBFO** active at any po
 
 ## How it works
 
-- `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit.
+- `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit. `sql/m7_exits_to_ph.sql` is generated from the 7a.1 and 7b.1 copies: each measure's logic is unchanged, and only the final unduplicated count of people exiting either to permanent housing is added.
 - `src/data/spm.json.py` is a build-time data loader: it runs those queries in BigQuery and writes a small JSON of aggregates, computed for all CoC projects and for MOHS-funded projects. No row-level data or credentials reach the site.
 - `.github/workflows/deploy.yml` rebuilds and deploys monthly (first Wednesday of the month), on every push to `main`, and on demand (Actions → Build and deploy KPIs → Run workflow).
 
