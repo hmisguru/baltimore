@@ -27,7 +27,7 @@ tabs.classList.add("bridge-tabs");
 const householdValue = Generators.input(household);
 const projectValue = Generators.input(project);
 const tabValue = Generators.input(tabs);
-display(html`<div class="bridge-controls">${household}${project}</div>`);
+display(html`<div class="bridge-controls">${project}${household}</div>`);
 display(tabs);
 ```
 
