@@ -1,9 +1,13 @@
 name: Build and deploy KPIs
 
 on:
-  # Monthly refresh: 3rd of the month, 13:17 UTC.
+  # Monthly refresh on the first Wednesday of the month, 13:17 UTC (9:17am
+  # Eastern in summer, 8:17am in winter). Cron can't say "first Wednesday":
+  # setting both day-of-month and day-of-week runs when EITHER matches. So
+  # this fires every Wednesday and the `schedule-gate` job skips the build
+  # unless it's the 1st-7th of the month.
   schedule:
-    - cron: "17 13 3 * *"
+    - cron: "17 13 * * 3"
   push:
     branches: [main]
   workflow_dispatch:
@@ -18,7 +22,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  schedule-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - id: gate
+        run: |
+          # Pushes and manual runs always build; scheduled runs only on the
+          # first Wednesday of the month (day 1-7).
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "$(date -u +%-d)" -le 7 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Not the first Wednesday of the month; skipping the rebuild."
+          fi
+
   build:
+    needs: schedule-gate
+    if: needs.schedule-gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,8 +81,9 @@ jobs:
         uses: actions/deploy-pages@v4
 
   # GitHub disables scheduled workflows in public repos after 60 days with no
-  # repository activity. Re-enabling this workflow via the API on every run
-  # resets that clock without needing a commit.
+  # repository activity. Re-enabling this workflow via the API on every
+  # scheduled run (weekly, including the skipped Wednesdays) resets that clock
+  # without needing a commit.
   keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

@@ -32,13 +32,15 @@ See the site's [embedding guide](https://hmisguru.github.io/baltimore-kpis/embed
 </script>
 ```
 
+To show MOHS-funded projects only (grants UNCGF and UNBFO), pass `{mohsFunded: true}` to `KPI`/`KPIGrid`, or add `?mohs=1` to an iframe URL.
+
 Raw numbers: https://hmisguru.github.io/baltimore-kpis/data/spm.json
 
 ## How it works
 
 - `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit.
 - `src/data/spm.json.py` is a build-time data loader: it runs those queries in BigQuery and writes a small JSON of CoC-wide aggregates. No row-level data or credentials reach the site.
-- `.github/workflows/deploy.yml` rebuilds and deploys monthly (3rd of the month), on every push to `main`, and on demand (Actions → Build and deploy KPIs → Run workflow).
+- `.github/workflows/deploy.yml` rebuilds and deploys monthly (first Wednesday of the month), on every push to `main`, and on demand (Actions → Build and deploy KPIs → Run workflow).
 
 ## Local development
 

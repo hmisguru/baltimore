@@ -17,6 +17,7 @@ b1_projects AS (
   FROM balhmiscsv.Project p
   WHERE p.ContinuumProject = 1
     AND p.ProjectType IN (0, 1, 2, 3, 8, 9, 10, 13)
+    AND (@all_projects OR p.ProjectID IN UNNEST(@project_ids))
 ),
 own_movein AS (
   -- Housing move-in date is only required on the Head of Household; inherit it to
