@@ -1,0 +1,44 @@
+name: Check Bridge data access
+
+# Temporary: confirms the build's service account can read the Bridge to
+# Housing data (a BigQuery view over a Google Sheet) before the prototype is
+# merged. Runs the loader but prints only pass/fail details, never figures
+# (this repo's Actions logs are public), and deploys nothing.
+on:
+  push:
+    branches: [claude/eloquent-noether-ng29yo]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Authenticate to BigQuery
+        env:
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/gcp-key.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-key.json" >> "$GITHUB_ENV"
+          python -c "import json,sys; print('Service account:', json.load(open(sys.argv[1]))['client_email'])" "$RUNNER_TEMP/gcp-key.json"
+      - name: Run the Bridge loader
+        run: |
+          start=$(date +%s)
+          python src/data/bridge.json.py > "$RUNNER_TEMP/bridge.json"
+          echo "Loader finished in $(( $(date +%s) - start ))s"
+          python - "$RUNNER_TEMP/bridge.json" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          empty = sum(1 for q in d["data"].values() if not q["rows"])
+          print(f"OK: {len(d['tabs'])} tabs, {len(d['results'])} filter combinations, "
+                f"{len(d['data'])} distinct query results ({empty} empty), "
+                f"{len(json.dumps(d))} bytes")
+          PY
