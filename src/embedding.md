@@ -68,6 +68,19 @@ For anything else (a chart library, a report generator, another dashboard):
 display(html`<pre><code>${`${base}data/spm.json`}</code></pre>`);
 ```
 
+## Bridge to Housing dashboard
+
+The full Bridge to Housing dashboard (About panel, filters, all five tabs) embeds as an iframe plus one script tag. The script resizes the iframe to fit as visitors switch tabs and filters; without it, the iframe scrolls inside its fixed height.
+
+```js
+display(html`<pre><code>${`<iframe src="${base}embed/bridge"
+  title="Bridge to Housing Dashboard"
+  width="100%" height="1600" style="border:0"></iframe>
+<script type="module" src="${base}bridge-embed.js"><\/script>`}</code></pre>`);
+```
+
+Optional URL parameters set the starting tab and filters, for example `embed/bridge?tab=demographics&project=rrh&household=adults-only`. Case, spaces and punctuation don't matter; unrecognized values fall back to the defaults.
+
 ## KPI definitions
 
 ```js
