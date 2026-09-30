@@ -24,7 +24,7 @@ export async function KPI(id, options) {
   return renderKpi(d, findKpi(d, id), options);
 }
 
-/** A responsive grid of KPI tiles; all five when ids is omitted. */
+/** A responsive grid of KPI tiles; all of them when ids is omitted. */
 export async function KPIGrid(ids, options) {
   const d = await spm;
   return renderKpiGrid(d, ids ?? d.kpis.map((k) => k.id), options);

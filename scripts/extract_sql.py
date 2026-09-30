@@ -26,6 +26,7 @@ WIDGETS = {
     "m2_returns.sql": "Measure 2a/2b — Returns to Homelessness Within 6, 12, and 24 Months",
     "m3_sheltered.sql": "Metric 3.2 — Unduplicated Sheltered Persons",
     "m5_first_time.sql": "Metric 5.1 — First-Time Homeless (ES, SH, TH)",
+    "m7a1_street_outreach.sql": "Metric 7a.1 — Successful Placement from Street Outreach",
     "m7b1_placement.sql": "Metric 7b.1 — Successful Placement (ES, SH, TH, PH-RRH, PH exits without move-in)",
 }
 

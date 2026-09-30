@@ -69,6 +69,7 @@ def main():
         "m2_prev": ("m2_returns.sql", prev_start),
         "m3": ("m3_sheltered.sql", cur_start),
         "m5": ("m5_first_time.sql", cur_start),
+        "m7a1": ("m7a1_street_outreach.sql", cur_start),
         "m7b1": ("m7b1_placement.sql", cur_start),
     }
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
@@ -83,11 +84,14 @@ def main():
     m2_prev = pick(results["m2_prev"], "row_bucket", m2_label)
     m3 = pick(results["m3"], "bucket", "Total (Unduplicated)")
     m5 = pick(results["m5"], "row_label", "Newly homeless (no prior activity)")
-    m7 = pick(results["m7b1"], "row_label", "% Successful exits")
-    m7_universe = pick(
+    m7a_universe = pick(results["m7a1"], "row_label", "Universe: persons who exit Street Outreach")
+    m7a_rate = pick(results["m7a1"], "row_label", "% Successful exits")
+    m7b_rate = pick(results["m7b1"], "row_label", "% Successful exits")
+    m7b_universe = pick(
         results["m7b1"], "row_label",
         "Universe: ES/SH/TH/PH-RRH leavers + other PH leavers without move-in",
     )
+    m7b_permanent = pick(results["m7b1"], "row_label", "Exited to permanent housing destination")
 
     kpis = [
         {
@@ -108,14 +112,19 @@ def main():
             "id": "returns-to-homelessness",
             "measure": "Measure 2",
             "title": "Returned to homelessness within 2 years",
-            "value": m2_cur["pct_total"],
-            "previous": m2_prev["pct_total"],
-            "format": "percent",
+            "value": m2_cur["total_returns"],
+            "previous": m2_prev["total_returns"],
+            "format": "number",
+            "unit": "people",
+            "rate": {
+                "value": m2_cur["pct_total"],
+                "previous": m2_prev["pct_total"],
+                "label": f"of {m2_cur['total_exited']:,} who exited to permanent housing",
+            },
             "better": "lower",
             "description": (
-                "Share of people who exited to permanent housing two years before the "
-                "fiscal year and came back to shelter, outreach, or housing programs "
-                "within 24 months."
+                "People who exited to permanent housing two years before the fiscal year "
+                "and came back to shelter, outreach, or housing programs within 24 months."
             ),
             "universe": m2_cur["total_exited"],
         },
@@ -148,18 +157,44 @@ def main():
             "universe": None,
         },
         {
+            "id": "street-outreach-exits",
+            "measure": "Measure 7a.1",
+            "title": "People exiting Street Outreach",
+            "value": int(m7a_universe["current_fy"]),
+            "previous": int(m7a_universe["previous_fy"]),
+            "format": "number",
+            "unit": "people",
+            "rate": {
+                "value": m7a_rate["current_fy"],
+                "previous": m7a_rate["previous_fy"],
+                "label": "moved to shelter, temporary or institutional settings, or permanent housing",
+            },
+            "better": "higher",
+            "description": (
+                "People who left Street Outreach during the fiscal year. The percentage is "
+                "HUD's successful placement rate for outreach."
+            ),
+            "universe": int(m7a_universe["current_fy"]),
+        },
+        {
             "id": "exits-to-permanent-housing",
             "measure": "Measure 7b.1",
             "title": "Exits to permanent housing",
-            "value": m7["current_fy"],
-            "previous": m7["previous_fy"],
-            "format": "percent",
+            "value": int(m7b_permanent["current_fy"]),
+            "previous": int(m7b_permanent["previous_fy"]),
+            "format": "number",
+            "unit": "people",
+            "rate": {
+                "value": m7b_rate["current_fy"],
+                "previous": m7b_rate["previous_fy"],
+                "label": f"of {int(m7b_universe['current_fy']):,} people leaving programs",
+            },
             "better": "higher",
             "description": (
-                "Share of people leaving shelter, Safe Haven, transitional housing, or "
-                "rapid re-housing who moved into permanent housing."
+                "People leaving shelter, Safe Haven, transitional housing, or rapid "
+                "re-housing who moved into permanent housing."
             ),
-            "universe": int(m7_universe["current_fy"]),
+            "universe": int(m7b_universe["current_fy"]),
         },
     ]
 
