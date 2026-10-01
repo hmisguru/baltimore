@@ -16,8 +16,8 @@ rows:
           SELECT COUNT(*) AS referral_count
           FROM clienttrack.Call
           WHERE CallType = 1
-            AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+            AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
         value:
           field: referral_count
           type: number
@@ -29,8 +29,8 @@ rows:
         sql: |
           SELECT COUNT(*) AS call_count
           FROM clienttrack.Call
-          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
         value:
           field: call_count
           type: number
@@ -43,8 +43,8 @@ rows:
           SELECT
             SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT DATE(CallDate))) AS avg_calls_per_day
           FROM clienttrack.Call
-          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
         value:
           field: avg_calls_per_day
           type: number
@@ -64,8 +64,8 @@ rows:
             IF(CallType = 1, 'Referrals', 'Other Calls') AS call_category,
             COUNT(CallID) AS call_count
           FROM clienttrack.Call
-          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
           GROUP BY call_date, call_date_label, call_category
           ORDER BY call_date
         x: { field: call_date_label, type: category }
@@ -91,8 +91,8 @@ rows:
               END AS household_type,
               CallID
             FROM clienttrack.Call
-            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
           ),
           grouped AS (
             SELECT household_type, COUNT(CallID) AS call_count
@@ -123,8 +123,8 @@ rows:
           WITH month_calls AS (
             SELECT CallID
             FROM clienttrack.Call
-            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
           ),
           gender_by_call AS (
             SELECT LinkID, ANY_VALUE(CodeID) AS CodeID
@@ -168,8 +168,8 @@ rows:
               END AS household_type
             FROM clienttrack.Call
             WHERE CallType = 1
-              AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+              AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE('America/New_York'), MONTH), INTERVAL 1 MONTH)
           ),
           gender_by_call AS (
             SELECT LinkID, ANY_VALUE(CodeID) AS CodeID
