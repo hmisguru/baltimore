@@ -1,0 +1,202 @@
+# Verbatim copy of balcoordinatedentry.yml (Coordinated Entry Line Dashboard)
+# from the private hmisguru/baltimore repo, staging branch. The Observable
+# prototype at /coordinated-entry/ renders these widgets and runs their SQL
+# at build time; refresh it with:
+#   git -C ../baltimore show origin/staging:balcoordinatedentry.yml > /tmp/c.yml
+#   (keep this header) and replace everything below it.
+name: Coordinated Entry Line Dashboard
+description: Daily call activity on the Coordinated Entry line.
+connection: clienttrack
+
+rows:
+  - widgets:
+      - name: Referrals This Month
+        type: metric
+        sql: |
+          SELECT COUNT(*) AS referral_count
+          FROM clienttrack.Call
+          WHERE CallType = 1
+            AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+        value:
+          field: referral_count
+          type: number
+          format: ",.0f"
+        col: 3
+
+      - name: Total Calls This Month
+        type: metric
+        sql: |
+          SELECT COUNT(*) AS call_count
+          FROM clienttrack.Call
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+        value:
+          field: call_count
+          type: number
+          format: ",.0f"
+        col: 3
+
+      - name: Average Calls Per Day
+        type: metric
+        sql: |
+          SELECT
+            SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT DATE(CallDate))) AS avg_calls_per_day
+          FROM clienttrack.Call
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+        value:
+          field: avg_calls_per_day
+          type: number
+          format: ",.1f"
+        col: 3
+
+  - widgets:
+      - name: Daily Call Volume
+        type: chart
+        chart: bar
+        stacked: true
+        description: Call volume by day for the current month, split into Referrals (CallType = 1) and Other Calls (every other CallType, lumped together). The x-axis is a pre-formatted category label, not a date-typed field -- see the CLAUDE.md note on the DAC date-axis timezone bug this works around.
+        sql: |
+          SELECT
+            DATE(CallDate) AS call_date,
+            FORMAT_DATE('%a %-d', DATE(CallDate)) AS call_date_label,
+            IF(CallType = 1, 'Referrals', 'Other Calls') AS call_category,
+            COUNT(CallID) AS call_count
+          FROM clienttrack.Call
+          WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+            AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          GROUP BY call_date, call_date_label, call_category
+          ORDER BY call_date
+        x: { field: call_date_label, type: category }
+        y: { field: call_count }
+        color: { field: call_category }
+        col: 12
+
+  - widgets:
+      - name: Caller Household Type
+        type: chart
+        chart: pie
+        description: Callers this month by household type (Call.ClientType) — Single Adults, Couples, Families with Children, Youth 18-24, Unaccompanied Minors, and Unknown (ClientType 4, or any unmapped/NULL value). Categories under 3% of the month's total are grouped into "Other".
+        sql: |
+          WITH mapped AS (
+            SELECT
+              CASE ClientType
+                WHEN 1 THEN 'Single Adults'
+                WHEN 6 THEN 'Couples'
+                WHEN 2 THEN 'Families with Children'
+                WHEN 5 THEN 'Youth 18 - 24'
+                WHEN 3 THEN 'Unaccompanied Minors'
+                ELSE 'Unknown'
+              END AS household_type,
+              CallID
+            FROM clienttrack.Call
+            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          ),
+          grouped AS (
+            SELECT household_type, COUNT(CallID) AS call_count
+            FROM mapped
+            GROUP BY household_type
+          ),
+          totaled AS (
+            SELECT household_type, call_count, SUM(call_count) OVER () AS grand_total
+            FROM grouped
+          )
+          SELECT
+            CASE WHEN SAFE_DIVIDE(call_count, grand_total) < 0.03 THEN 'Other' ELSE household_type END AS household_type,
+            SUM(call_count) AS call_count
+          FROM totaled
+          GROUP BY household_type
+          ORDER BY call_count DESC
+        label: household_type
+        value:
+          field: call_count
+          format: ",.0f"
+        col: 6
+
+      - name: Caller Gender
+        type: chart
+        chart: pie
+        description: Callers this month by gender identity (CodeLink.CodeID, CodeTypeID = 3, joined on CodeLink.LinkID = Call.CallID) — Male, Female, Non-binary, and Unknown (explicit CodeID 21, or a call with no Gender Identity CodeLink record at all).
+        sql: |
+          WITH month_calls AS (
+            SELECT CallID
+            FROM clienttrack.Call
+            WHERE DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          ),
+          gender_by_call AS (
+            SELECT LinkID, ANY_VALUE(CodeID) AS CodeID
+            FROM clienttrack.CodeLink
+            WHERE CodeTypeID = 3
+            GROUP BY LinkID
+          )
+          SELECT
+            CASE g.CodeID
+              WHEN 16 THEN 'Male'
+              WHEN 17 THEN 'Female'
+              WHEN 20 THEN 'Non-binary'
+              ELSE 'Unknown'
+            END AS gender,
+            COUNT(mc.CallID) AS call_count
+          FROM month_calls mc
+          LEFT JOIN gender_by_call g ON g.LinkID = mc.CallID
+          GROUP BY gender
+          ORDER BY call_count DESC
+        label: gender
+        value:
+          field: call_count
+          format: ",.0f"
+        col: 6
+
+  - widgets:
+      - name: Referrals by Household Type and Gender
+        type: pivot_table
+        description: This month's referrals (Call.CallType = 1), cross-tabbed by household type (Call.ClientType) and gender identity (CodeLink.CodeID, CodeTypeID = 3) -- the same mappings as the Caller Household Type and Caller Gender pies above, scoped to referrals only and shown as an intersection instead of two separate marginal distributions.
+        sql: |
+          WITH referral_calls AS (
+            SELECT
+              CallID,
+              CASE ClientType
+                WHEN 1 THEN 'Single Adults'
+                WHEN 6 THEN 'Couples'
+                WHEN 2 THEN 'Families with Children'
+                WHEN 5 THEN 'Youth 18 - 24'
+                WHEN 3 THEN 'Unaccompanied Minors'
+                ELSE 'Unknown'
+              END AS household_type
+            FROM clienttrack.Call
+            WHERE CallType = 1
+              AND DATE(CallDate) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+              AND DATE(CallDate) < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+          ),
+          gender_by_call AS (
+            SELECT LinkID, ANY_VALUE(CodeID) AS CodeID
+            FROM clienttrack.CodeLink
+            WHERE CodeTypeID = 3
+            GROUP BY LinkID
+          )
+          SELECT
+            rc.household_type,
+            CASE g.CodeID
+              WHEN 16 THEN 'Male'
+              WHEN 17 THEN 'Female'
+              WHEN 20 THEN 'Non-binary'
+              ELSE 'Unknown'
+            END AS gender,
+            COUNT(rc.CallID) AS call_count
+          FROM referral_calls rc
+          LEFT JOIN gender_by_call g ON g.LinkID = rc.CallID
+          GROUP BY rc.household_type, gender
+        pivot:
+          rows:
+            - field: household_type
+              showTotals: true
+          columns:
+            - field: gender
+          values:
+            - field: call_count
+              summarize: sum
+              label: Referrals
+        col: 12

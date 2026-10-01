@@ -1,0 +1,25 @@
+/* Coordinated Entry Line dashboard styles, scoped to /coordinated-entry/. */
+:root { --ce-purple: #60397c; --ce-deep: #2f1c3d; --ce-gold: #fabe21; --ce-surface: #f4fafb; --ce-border: #d9e7ea; --ce-muted: #4f4a57; }
+#observablehq-main { max-width: 1280px; }
+.ce-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
+.ce-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ce-purple); }
+.ce-lede { margin: 0 0 20px; color: var(--ce-muted); max-width: 70ch; }
+.ce-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.ce-card { grid-column: span var(--span); min-width: 0; padding: 16px 20px; background: var(--ce-surface); border: 1px solid var(--ce-border); border-radius: 12px; }
+.ce-card-metric { border-top: 4px solid var(--ce-gold); }
+.ce-card-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--ce-deep); max-width: none; }
+.ce-card-description { margin: 0 0 10px; font-size: 13px; color: var(--ce-muted); max-width: none; }
+.ce-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
+.ce-metric-text { font-size: 24px; }
+.ce-empty { color: var(--ce-muted); font-style: italic; margin: 0; }
+.ce-table-wrap { overflow-x: auto; }
+.ce-table { width: 100%; max-width: none; font-size: 14px; border-collapse: collapse; }
+.ce-table th { vertical-align: bottom; font-size: 13px; padding: 4px 8px; border-bottom: 1px solid var(--ce-border); text-align: left; }
+.ce-table td { padding: 4px 8px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; text-align: left; }
+.ce-table tbody tr:last-child td { border-bottom: 0; }
+.ce-total-row th, .ce-total-row td { font-weight: 700; border-top: 2px solid var(--ce-border); }
+.ce-footnote { font-size: 13px; color: var(--ce-muted); max-width: none; }
+@media (max-width: 760px) {
+  .ce-row { grid-template-columns: 1fr; }
+  .ce-card { grid-column: 1 / -1; }
+}
