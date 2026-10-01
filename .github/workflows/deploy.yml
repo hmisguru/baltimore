@@ -1,12 +1,20 @@
 name: Build and deploy KPIs
 
 on:
-  # Monthly refresh on the first Wednesday of the month, 13:17 UTC (9:17am
-  # Eastern in summer, 8:17am in winter). Cron can't say "first Wednesday":
-  # setting both day-of-month and day-of-week runs when EITHER matches. So
-  # this fires every Wednesday and the `schedule-gate` job skips the build
-  # unless it's the 1st-7th of the month.
   schedule:
+    # Daily refresh, 10:00 UTC (6am Eastern in summer, 5am in winter) -- two
+    # hours after hmisguru/baltimore's ClientTrack sync (08:00 UTC), so
+    # clienttrack.Call/CodeLink are fresh before this rebuilds. Keeps the
+    # Coordinated Entry page's "this month"/"today" figures current instead
+    # of only updating on the next push or the monthly refresh below.
+    - cron: "0 10 * * *"
+    # Monthly refresh on the first Wednesday of the month, 13:17 UTC (9:17am
+    # Eastern in summer, 8:17am in winter). Cron can't say "first Wednesday":
+    # setting both day-of-month and day-of-week runs when EITHER matches. So
+    # this fires every Wednesday and the `schedule-gate` job skips the build
+    # unless it's the 1st-7th of the month. (Now redundant with the daily
+    # cron above for same-day freshness, but kept as a second, independent
+    # trigger in case the daily one is ever disabled.)
     - cron: "17 13 * * 3"
   push:
     branches: [main]
@@ -29,9 +37,12 @@ jobs:
     steps:
       - id: gate
         run: |
-          # Pushes and manual runs always build; scheduled runs only on the
-          # first Wednesday of the month (day 1-7).
-          if [ "${{ github.event_name }}" != "schedule" ] || [ "$(date -u +%-d)" -le 7 ]; then
+          # Pushes, manual runs, and the daily 10:00 UTC cron always build.
+          # The monthly Wednesday cron only builds on the first Wednesday of
+          # the month (day 1-7) -- github.event.schedule holds the exact
+          # cron expression that fired, so the two schedules are told apart
+          # by that rather than by time-of-day.
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "${{ github.event.schedule }}" == "0 10 * * *" ] || [ "$(date -u +%-d)" -le 7 ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -82,8 +93,8 @@ jobs:
 
   # GitHub disables scheduled workflows in public repos after 60 days with no
   # repository activity. Re-enabling this workflow via the API on every
-  # scheduled run (weekly, including the skipped Wednesdays) resets that clock
-  # without needing a commit.
+  # scheduled run (daily, plus the weekly Wednesday one, including its
+  # skipped weeks) resets that clock without needing a commit.
   keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
