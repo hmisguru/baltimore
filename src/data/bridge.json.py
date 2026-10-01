@@ -14,22 +14,42 @@ The dashboard reads baldashboard.performance_metrics, a view over a Google
 Sheets external table, so credentials need the Drive scope as well as
 BigQuery, and the service account must have access to the Sheet. The Sheet's
 Drive modified time is included as "source_modified" for the page footer.
+
+Google's Sheets backend has its own concurrent-read limit on a single
+spreadsheet, separate from BigQuery's own quotas -- hit twice in a row
+(2026-10-01) as `400 Resources exceeded ... Google Sheets service
+overloaded for spreadsheet id: ...` once query concurrency against this
+table grew to 190 distinct queries. Addressed two ways: a smaller
+ThreadPoolExecutor (8 -> 3 workers) so fewer queries hit the Sheet at once,
+and a retry with exponential backoff in `run()` scoped specifically to that
+error string -- any other BigQuery error still fails the build immediately,
+since retrying a real query bug would just waste CI minutes before failing
+anyway.
 """
 
 import hashlib
 import itertools
 import json
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
 import google.auth
+from google.api_core.exceptions import BadRequest
 from google.auth.transport.requests import AuthorizedSession
 import jinja2
 import yaml
 from google.cloud import bigquery
+
+# Retries only kick in for the Sheets-overload error specifically (see above);
+# any other failure raises immediately. 4 attempts with 5s/10s/20s/40s delays
+# comfortably outlasts a transient overload without risking a silent hang.
+SHEETS_OVERLOAD_MARKER = "Sheets service overloaded"
+MAX_RETRIES = 4
+RETRY_BASE_DELAY_S = 5
 
 BQ_PROJECT_ID = "baldash-508920"
 # The Google Sheets external table behind baldashboard.performance_metrics.
@@ -56,12 +76,20 @@ def json_value(v):
 
 
 def run(sql):
-    job = client.query(sql)
-    result = job.result()
-    return {
-        "columns": [field.name for field in result.schema],
-        "rows": [[json_value(v) for v in row.values()] for row in result],
-    }
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            job = client.query(sql)
+            result = job.result()
+            return {
+                "columns": [field.name for field in result.schema],
+                "rows": [[json_value(v) for v in row.values()] for row in result],
+            }
+        except BadRequest as e:
+            if SHEETS_OVERLOAD_MARKER not in str(e) or attempt == MAX_RETRIES:
+                raise
+            delay = RETRY_BASE_DELAY_S * (2 ** attempt)
+            print(f"Sheets overloaded, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})...", file=sys.stderr)
+            time.sleep(delay)
 
 
 def source_modified():
@@ -134,7 +162,7 @@ def main():
     print(f"{len(sql_templates)} widgets x {len(combos)} filter combinations = "
           f"{len(sql_templates) * len(combos)} widget results, {len(queries)} distinct queries",
           file=sys.stderr)
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         data = dict(zip(queries, pool.map(run, queries.values())))
 
     json.dump(
