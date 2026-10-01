@@ -1,5 +1,5 @@
 # Verbatim copy of balcoordinatedentry.yml (Coordinated Entry Line Dashboard)
-# from the private hmisguru/baltimore repo, staging branch. The Observable
+# from the private hmisguru/baltimore-dac repo, staging branch. The Observable
 # prototype at /coordinated-entry/ renders these widgets and runs their SQL
 # at build time; refresh it with:
 #   git -C ../baltimore show origin/staging:balcoordinatedentry.yml > /tmp/c.yml

@@ -1,5 +1,5 @@
 {
-  "name": "baltimore-kpis",
+  "name": "baltimore",
   "version": "0.0.0",
   "scripts": {
     "clean": "rm -rf src/.observablehq/cache",
@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hmisguru/baltimore-kpis.git"
+    "url": "git+https://github.com/hmisguru/baltimore.git"
   },
   "bugs": {
-    "url": "https://github.com/hmisguru/baltimore-kpis/issues"
+    "url": "https://github.com/hmisguru/baltimore/issues"
   },
-  "homepage": "https://github.com/hmisguru/baltimore-kpis#readme",
+  "homepage": "https://github.com/hmisguru/baltimore#readme",
   "devDependencies": {
     "@observablehq/framework": "^1.13.4"
   },

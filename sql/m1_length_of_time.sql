@@ -1,4 +1,4 @@
--- Copied from balspm.yml (hmisguru/baltimore, staging): "Measures 1a and 1b — Average and Median Length of Time Homeless".
+-- Copied from balspm.yml (hmisguru/baltimore-dac, staging): "Measures 1a and 1b — Average and Median Length of Time Homeless".
 -- Regenerate with scripts/extract_sql.py; do not edit by hand.
 WITH bounds AS (
   SELECT

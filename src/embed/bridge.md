@@ -43,7 +43,7 @@ display(renderFootnote(bridge));
 // (tab or filter switch, resize, fonts). /bridge-embed.js on the host page
 // applies it to this iframe and replies, and only then is this page's own
 // scrollbar turned off, so an iframe without that script still scrolls.
-const HEIGHT = "baltimore-kpis:bridge-height", AUTOSIZE = "baltimore-kpis:bridge-autosize";
+const HEIGHT = "baltimore:bridge-height", AUTOSIZE = "baltimore:bridge-autosize";
 const main = document.querySelector("#observablehq-main");
 const report = () => window.parent.postMessage({type: HEIGHT, height: Math.ceil(main.getBoundingClientRect().bottom + scrollY)}, "*");
 const observer = new ResizeObserver(report);

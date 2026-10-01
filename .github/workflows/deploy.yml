@@ -3,7 +3,7 @@ name: Build and deploy KPIs
 on:
   schedule:
     # Daily refresh, 10:00 UTC (6am Eastern in summer, 5am in winter) -- two
-    # hours after hmisguru/baltimore's ClientTrack sync (08:00 UTC), so
+    # hours after hmisguru/baltimore-dac's ClientTrack sync (08:00 UTC), so
     # clienttrack.Call/CodeLink are fresh before this rebuilds. Keeps the
     # Coordinated Entry page's "this month"/"today" figures current instead
     # of only updating on the next push or the monthly refresh below.
