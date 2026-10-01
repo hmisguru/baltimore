@@ -8,7 +8,8 @@ layout plus all results as one JSON document.
 Reads clienttrack.Call and clienttrack.CodeLink directly -- plain BigQuery
 tables kept fresh by the ClientTrack CTAPI sync in the private hmisguru/
 baltimore repo (scripts/sync_call.py, sync_codelink.py, via the
-baltimore-call-sync Render service). No Google Sheets/Drive involvement,
+baltimore-clientrack-sync Render service, renamed from baltimore-call-sync --
+same service, same URL, label only). No Google Sheets/Drive involvement,
 unlike bridge.json.py's performance_metrics source, so this loader only
 needs the plain BigQuery scope.
 
