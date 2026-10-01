@@ -1,4 +1,4 @@
--- Copied from balspm.yml (hmisguru/baltimore, staging): "Metric 7a.1 — Successful Placement from Street Outreach".
+-- Copied from balspm.yml (hmisguru/baltimore-dac, staging): "Metric 7a.1 — Successful Placement from Street Outreach".
 -- Regenerate with scripts/extract_sql.py; do not edit by hand.
 WITH bounds AS (
   SELECT

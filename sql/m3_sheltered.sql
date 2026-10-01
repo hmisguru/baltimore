@@ -1,4 +1,4 @@
--- Copied from balspm.yml (hmisguru/baltimore, staging): "Metric 3.2 — Unduplicated Sheltered Persons".
+-- Copied from balspm.yml (hmisguru/baltimore-dac, staging): "Metric 3.2 — Unduplicated Sheltered Persons".
 -- Regenerate with scripts/extract_sql.py; do not edit by hand.
 WITH bounds AS (
   SELECT

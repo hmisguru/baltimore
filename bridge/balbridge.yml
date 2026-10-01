@@ -1,5 +1,5 @@
 # Verbatim copy of balbridge.yml (Bridge to Housing Dashboard) from the private
-# hmisguru/baltimore repo, staging branch. The Observable prototype at /bridge/
+# hmisguru/baltimore-dac repo, staging branch. The Observable prototype at /bridge/
 # renders these widgets and runs their SQL at build time; refresh it with:
 #   git -C ../baltimore show origin/staging:balbridge.yml > /tmp/b.yml
 #   (keep this header) and replace everything below it.

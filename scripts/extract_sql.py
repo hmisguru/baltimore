@@ -1,6 +1,6 @@
 """Re-extract the KPI queries from the baltimore repo's System Performance dashboard.
 
-The SQL in sql/ is a copy of specific widgets in balspm.yml (hmisguru/baltimore,
+The SQL in sql/ is a copy of specific widgets in balspm.yml (hmisguru/baltimore-dac,
 `staging` branch), so the published KPIs match the dashboard exactly. When a
 measure's logic changes there, re-run this against a fresh copy of that file:
 
@@ -133,7 +133,7 @@ def main(dashboard_path):
         # Drop blank lines left behind by the Jinja blocks.
         sql = "\n".join(line for line in sql.splitlines() if line.strip()) + "\n"
         header = (
-            f"-- Copied from balspm.yml (hmisguru/baltimore, staging): \"{name}\".\n"
+            f"-- Copied from balspm.yml (hmisguru/baltimore-dac, staging): \"{name}\".\n"
             "-- Regenerate with scripts/extract_sql.py; do not edit by hand.\n"
         )
         (SQL_DIR / filename).write_text(header + sql)

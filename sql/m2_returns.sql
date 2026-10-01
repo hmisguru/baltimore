@@ -1,4 +1,4 @@
--- Copied from balspm.yml (hmisguru/baltimore, staging): "Measure 2a/2b — Returns to Homelessness Within 6, 12, and 24 Months".
+-- Copied from balspm.yml (hmisguru/baltimore-dac, staging): "Measure 2a/2b — Returns to Homelessness Within 6, 12, and 24 Months".
 -- Regenerate with scripts/extract_sql.py; do not edit by hand.
 WITH bounds AS (
   SELECT

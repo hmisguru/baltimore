@@ -1,6 +1,6 @@
-# baltimore-kpis
+# baltimore
 
-Embeddable KPIs for the Baltimore City Continuum of Care (MD-501), built from HMIS data with [Observable Framework](https://observablehq.com/framework/) and published on GitHub Pages at **https://hmisguru.github.io/baltimore-kpis/**.
+Embeddable KPIs for the Baltimore City Continuum of Care (MD-501), built from HMIS data with [Observable Framework](https://observablehq.com/framework/) and published on GitHub Pages at **https://hmisguru.github.io/baltimore/**.
 
 ## KPIs
 
@@ -17,7 +17,7 @@ Six HUD System Performance Measures, for the most recent complete federal fiscal
 
 ## Embedding
 
-There are three ways to put the KPIs on another website. All of them update automatically when this site rebuilds (first Wednesday of each month). The site's [embedding guide](https://hmisguru.github.io/baltimore-kpis/embedding) has copy-and-paste snippets.
+There are three ways to put the KPIs on another website. All of them update automatically when this site rebuilds (first Wednesday of each month). The site's [embedding guide](https://hmisguru.github.io/baltimore/embedding) has copy-and-paste snippets.
 
 ### 1. JavaScript module (recommended)
 
@@ -26,7 +26,7 @@ Renders the tiles directly into your page, so they fit your layout, resize on ph
 ```html
 <div id="baltimore-kpis"></div>
 <script type="module">
-  import {KPIGrid} from "https://hmisguru.github.io/baltimore-kpis/kpis.js";
+  import {KPIGrid} from "https://hmisguru.github.io/baltimore/kpis.js";
   document.querySelector("#baltimore-kpis").append(await KPIGrid());
 </script>
 ```
@@ -47,7 +47,7 @@ await KPIGrid(undefined, {toggle: true, mohsFunded: true})
 await KPIGrid(["people-sheltered", "first-time-homeless"])
 
 // A single tile
-import {KPI} from "https://hmisguru.github.io/baltimore-kpis/kpis.js";
+import {KPI} from "https://hmisguru.github.io/baltimore/kpis.js";
 await KPI("exits-to-permanent-housing")
 ```
 
@@ -73,12 +73,12 @@ Works anywhere you can paste HTML, but the iframe needs a fixed height and uses 
 
 ```html
 <!-- Full grid with the switch -->
-<iframe src="https://hmisguru.github.io/baltimore-kpis/embed/all?toggle=1"
+<iframe src="https://hmisguru.github.io/baltimore/embed/all?toggle=1"
   title="Baltimore CoC system performance KPIs"
   width="100%" height="680" style="border:0"></iframe>
 
 <!-- One KPI -->
-<iframe src="https://hmisguru.github.io/baltimore-kpis/embed/people-sheltered"
+<iframe src="https://hmisguru.github.io/baltimore/embed/people-sheltered"
   title="People in shelter or transitional housing"
   width="360" height="340" style="border:0"></iframe>
 ```
@@ -93,7 +93,7 @@ Combine parameters with `&`, e.g. `embed/all?toggle=1&mohs=1`. Single-KPI pages 
 
 ### 3. Raw JSON
 
-https://hmisguru.github.io/baltimore-kpis/data/spm.json has every figure. Top-level `kpis` covers all CoC projects; `filters["mohs-funded"].kpis` has the same KPIs for MOHS-funded projects, along with that filter's `grant_ids` and `projects`.
+https://hmisguru.github.io/baltimore/data/spm.json has every figure. Top-level `kpis` covers all CoC projects; `filters["mohs-funded"].kpis` has the same KPIs for MOHS-funded projects, along with that filter's `grant_ids` and `projects`.
 
 ### What "MOHS-funded" means
 
@@ -104,10 +104,10 @@ Projects with a funding record for grant **UNCGF** or **UNBFO** active at any po
 The full Bridge to Housing dashboard (the About panel, filters, all five tabs, and the "Source data last updated" line, without this site's page title) can go on another site as an iframe plus one script tag:
 
 ```html
-<iframe src="https://hmisguru.github.io/baltimore-kpis/embed/bridge"
+<iframe src="https://hmisguru.github.io/baltimore/embed/bridge"
   title="Bridge to Housing Dashboard"
   width="100%" height="1600" style="border:0"></iframe>
-<script type="module" src="https://hmisguru.github.io/baltimore-kpis/bridge-embed.js"></script>
+<script type="module" src="https://hmisguru.github.io/baltimore/bridge-embed.js"></script>
 ```
 
 The script resizes the iframe to fit the dashboard whenever a visitor switches tabs or filters, or the page width changes, so there's no inner scrollbar or blank space. It only accepts size messages from this site, and one script tag handles any number of these iframes on a page. Without it, the iframe keeps the fixed height and scrolls inside.
@@ -116,7 +116,7 @@ Optional URL parameters pick the starting tab and filters: `?tab=demographics`, 
 
 ## How it works
 
-- `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit. `sql/m7_exits_to_ph.sql` is generated from the 7a.1 and 7b.1 copies: each measure's logic is unchanged, and only the final unduplicated count of people exiting either to permanent housing is added.
+- `sql/*.sql` are copies of widgets in the System Performance Dashboard (`balspm.yml` in the private `hmisguru/baltimore-dac` repo), so published numbers match the dashboard. Regenerate with `scripts/extract_sql.py`; don't hand-edit. `sql/m7_exits_to_ph.sql` is generated from the 7a.1 and 7b.1 copies: each measure's logic is unchanged, and only the final unduplicated count of people exiting either to permanent housing is added.
 - `src/data/spm.json.py` is a build-time data loader: it runs those queries in BigQuery and writes a small JSON of aggregates, computed for all CoC projects and for MOHS-funded projects. No row-level data or credentials reach the site.
 - `.github/workflows/deploy.yml` rebuilds and deploys monthly (first Wednesday of the month), on every push to `main`, and on demand (Actions → Build and deploy KPIs → Run workflow).
 
