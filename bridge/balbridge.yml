@@ -1013,8 +1013,7 @@ rows:
             WHERE category = 'Destination'
               AND LOWER(`set`) LIKE '%permanent%'
               AND date = (SELECT MAX(date) FROM `baldashboard.performance_metrics`)
-              AND project_type IN ('AO', 'AC', 'CO')
-              AND ('{{ filters.household_type }}' = 'All Household Types' OR project_type = CASE '{{ filters.household_type }}'
+              AND ('{{ filters.household_type }}' = 'All Household Types' OR population_group = CASE '{{ filters.household_type }}'
                 WHEN 'Adults Only' THEN 'AO'
                 WHEN 'Families with Children' THEN 'AC'
                 WHEN 'Unaccompanied Minors' THEN 'CO'
