@@ -148,7 +148,15 @@ function renderTreemap(widget, rows) {
     .sort((a, b) => b.value - a.value);
 
   return resize((width) => {
-    const height = Math.max(360, width * 0.55);
+    // d3.pack() optimizes for a roughly circular cluster, not a wide
+    // rectangle: given a [w, h] box it only ever fills min(w, h), and a
+    // circle inscribed in that square doesn't reach the square's own
+    // corners either. Handing it this widget's full card width (easily
+    // 1000px+ on a wide screen) left most of the card blank. Capping the
+    // diagram to a fixed, content-sized square and centering it avoids
+    // allocating canvas pack() can't use in the first place, rather than
+    // fighting its layout to fill an oversized box.
+    const size = Math.min(width, 620);
     // Extra padding between groups (depth 0, i.e. around the root's own
     // children) than within a group (depth 1+), so a household type's
     // header label always has clear space from its neighbors -- pack()
@@ -157,7 +165,7 @@ function renderTreemap(widget, rows) {
     // abbreviated "UA" for the same reason -- shorter header, less
     // chance of overlap) can otherwise land tucked right against a much
     // bigger neighbor with no room for its label above it.
-    pack().size([width, height]).padding((d) => (d.depth === 0 ? 90 : 6))(root);
+    pack().size([size, size]).padding((d) => (d.depth === 0 ? 90 : 6))(root);
     const groupNodes = root.children;
     const leaves = root.leaves();
     const shortGroupName = (name) => (name === "Unaccompanied Minors" ? "UA" : name);
@@ -168,17 +176,17 @@ function renderTreemap(widget, rows) {
     // white-on-white against the page background, i.e. invisible, not
     // merely clipped. Estimate each label's own pixel width instead of
     // using one threshold for every segment.
-    const textWidth = (s, size = 11) => s.length * size * 0.56;
+    const textWidth = (s, fontSize = 11) => s.length * fontSize * 0.56;
     const big = leaves.filter((d) => d.r > 16 && d.r * 2 - 6 > textWidth(d.data._part));
-    return Plot.plot({
-      width,
-      height,
+    const plot = Plot.plot({
+      width: size,
+      height: size,
       marginLeft: 0,
       marginRight: 0,
       marginTop: 0,
       marginBottom: 0,
-      x: {domain: [0, width], axis: null},
-      y: {domain: [height, 0], axis: null},
+      x: {domain: [0, size], axis: null},
+      y: {domain: [size, 0], axis: null},
       r: {type: "identity"},
       color,
       marks: [
@@ -213,6 +221,7 @@ function renderTreemap(widget, rows) {
         Plot.text(big, {x: "x", y: (d) => d.y + 8, text: (d) => fmt(d.data[value]), fill: "white", fontSize: 11})
       ]
     });
+    return html`<div style="display:flex;justify-content:center">${plot}</div>`;
   });
 }
 
