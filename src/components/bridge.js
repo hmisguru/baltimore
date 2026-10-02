@@ -319,16 +319,11 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 // they're also resized -- their width depends on which tab they're on (see
 // mergeQuarterTopRow below), so they're set directly via a `col` override on
 // the merged row's widgets instead of this fixed, name-keyed table.
-// "Top Permanent Destinations This Quarter" keeps its YAML col:5 only
-// because it used to share a row with the exits summary tile;
-// restructurePositiveOutcomesRows() below moves it to its own row beneath
-// the two summary tiles. It's pinned to 6/12 (rather than the full 12/12)
-// to match the width of "Households Exiting to Permanent Housing" directly
-// above it -- grid auto-placement puts it at column 1 same as that tile, so
-// it lines up on the left edge too, not just width.
-const SPAN_OVERRIDES = {
-  "Top Permanent Destinations This Quarter": 6
-};
+// "Top Permanent Destinations This Quarter" needs no override at all: its
+// native YAML col:5 is exactly right now that it's back beside the exits
+// summary tile (col:7 -- see renderRowWidgets) in their original shared
+// row, 7 + 5 = 12.
+const SPAN_OVERRIDES = {};
 
 function renderWidget(bridge, widget, filterValues) {
   const rows = widgetRows(bridge, widget, filterValues);
@@ -470,15 +465,16 @@ function mergeQuarterTopRow(rows) {
 // Positive Outcomes pairs "Households Exiting to Permanent Housing" (a bare
 // current-quarter count) with "Exits to Permanent Housing — Trend" (a
 // one-row table) in the same YAML row, alongside the destination breakdown
-// table. Replaces that pair with one combined card (renderExitsSummary),
-// pinned to the same 6/12 span as "Top Permanent Destinations This Quarter"
-// below it (restructurePositiveOutcomesRows), leaving the destination table
-// untouched in its own position.
+// table (col:3 + col:4 + col:5 = 12). Replaces that pair with one combined
+// card (renderExitsSummary), spanning both their widths (7/12) -- per
+// explicit request the destination table stays in this same row beside it
+// rather than moving to its own row, so its native col:5 (no
+// SPAN_OVERRIDES entry needed) already completes the row exactly.
 function renderRowWidgets(bridge, row, filterValues) {
   const metricWidget = row.find((w) => w.name === "Households Exiting to Permanent Housing");
   const trendWidget = row.find((w) => w.name === "Exits to Permanent Housing — Trend");
   if (!metricWidget || !trendWidget) return row.map((w) => renderWidget(bridge, w, filterValues));
-  const combined = html`<section class="bridge-card bridge-card-metric" style="--span:6" data-widget=${metricWidget.id}>
+  const combined = html`<section class="bridge-card bridge-card-metric" style="--span:${(metricWidget.col ?? 0) + (trendWidget.col ?? 0)}" data-widget=${metricWidget.id}>
     <h3 class="bridge-card-title">${metricWidget.name}</h3>
     ${renderExitsSummary(metricWidget, trendWidget, widgetRows(bridge, metricWidget, filterValues), widgetRows(bridge, trendWidget, filterValues))}
   </section>`;
@@ -498,25 +494,14 @@ function dropPillOnlyWidgets(rows) {
   return rows.map((row) => row.filter((w) => !PILL_ONLY_WIDGET_NAMES.has(w.name))).filter((row) => row.length);
 }
 
-// balbridge.yml puts the exits-summary pair + the destination breakdown
-// table in one row, and "Returns After Permanent Placement" (now redundant
-// with the "Returned" glossary tile's own household count, which is this
-// same measure) alone in the row right after. Regrouped here: the exits
-// row is split into the summary pair alone (6/12, renderRowWidgets above)
-// and the destination table alone beneath it (SPAN_OVERRIDES widens it to
-// 6/12 to match); the orphaned returns-metric row is dropped entirely. Its
-// trend widget is handled generically above (dropPillOnlyWidgets), since
-// unlike this metric it's still in use, just on a different tab.
+// "Returns After Permanent Placement" (the bare metric widget, still in its
+// own YAML row alongside its now pill-only trend table) is redundant with
+// the "Returned" glossary tile's own household count on System Engagement,
+// which is this same measure -- dropped here, leaving no other widget
+// behind in its row (dropPillOnlyWidgets already removed the trend table),
+// so that row disappears from Positive Outcomes entirely.
 function restructurePositiveOutcomesRows(rows) {
-  const withoutReturnsMetric = rows.map((row) => row.filter((w) => w.name !== "Returns After Permanent Placement")).filter((row) => row.length);
-  const exitsRowIndex = withoutReturnsMetric.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
-  if (exitsRowIndex === -1) return withoutReturnsMetric;
-  const exitsRow = withoutReturnsMetric[exitsRowIndex];
-  const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destinations This Quarter");
-  const summaryRow = exitsRow.filter((w) => w !== destinationWidget);
-  const out = withoutReturnsMetric.filter((_, i) => i !== exitsRowIndex);
-  out.splice(exitsRowIndex, 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
-  return out;
+  return rows.map((row) => row.filter((w) => w.name !== "Returns After Permanent Placement")).filter((row) => row.length);
 }
 
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
