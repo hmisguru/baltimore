@@ -339,31 +339,46 @@ function renderWidget(bridge, widget, filterValues) {
 // `CASE ... AS engagement_state` in that YAML) exactly, including
 // "Recurring" per explicit choice, so there's no mismatch between this
 // glossary and what the chart below it actually says.
+// Every state's trendWidget points at a "... — Trend" table (same shape as
+// Positive Outcomes' Exits/Returns trend widgets: current_value, 4-quarter
+// rolling average, pct_of_average, comparison_label) that exists solely to
+// feed that tile's pill -- see PILL_ONLY_WIDGET_NAMES below, which keeps
+// all four of these off their nominal tab as a visible card of their own.
+// Established/New/Recurring's trend widgets live directly under "tab:
+// System Engagement" in the YAML; Returned's still lives under Positive
+// Outcomes (it was moved here by request after the fact, rather than
+// authored in place), reached the same way via findWidget()'s cross-tab
+// search either way. For all four, per explicit instruction, *below*
+// average is the positive direction (green) -- fewer households stuck,
+// newly homeless, recurring, or returning is the improvement -- the
+// opposite polarity from the Positive Outcomes exits tile, where *above*
+// average (more exits to permanent housing) is good.
 const ENGAGEMENT_STATES = [
   {
     label: "Established",
     accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed",
-    definition: "Continuously homeless since a prior report period — doesn't fit the other three states."
+    definition: "Continuously homeless since a prior report period — doesn't fit the other three states.",
+    trendWidget: "Established — Trend"
   },
   {
     label: "New",
     accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6",
-    definition: "First-time entry into the system, with no enrollment in the two years prior."
+    definition: "First-time entry into the system, with no enrollment in the two years prior.",
+    trendWidget: "New — Trend"
   },
   {
     label: "Recurring",
     accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9",
-    definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit."
+    definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit.",
+    trendWidget: "Recurring — Trend"
   },
   {
     label: "Returned",
     accent: "#eda100", bg: "#f9f5eb", border: "#eddbb6",
     definition: "Re-entered the system 15–730 days after a permanent-housing exit.",
     // Folds in "Returns After Permanent Placement" + its trend table, moved
-    // here from Positive Outcomes (see restructurePositiveOutcomesRows) --
-    // the household count above is already this same measure, so only the
-    // trend pill is new. The other three states don't have an equivalent
-    // trend widget yet.
+    // here from Positive Outcomes -- the household count above is already
+    // this same measure, so only the trend pill was new.
     trendWidget: "Returns After Placement — Trend"
   }
 ];
@@ -451,24 +466,36 @@ function renderRowWidgets(bridge, row, filterValues) {
   return [combined, ...row.filter((w) => w !== metricWidget && w !== trendWidget).map((w) => renderWidget(bridge, w, filterValues))];
 }
 
+// Every ENGAGEMENT_STATES trendWidget exists solely to feed a glossary
+// tile's pill (via findWidget() + trendPill() in renderEngagementLegend)
+// and should never also show up as its own visible card wherever it
+// happens to sit in the YAML -- Established/New/Recurring's trend widgets
+// are authored directly under "tab: System Engagement" (so without this,
+// they'd render as three orphan one-row tables above the glossary), and
+// Returned's still lives under Positive Outcomes.
+const PILL_ONLY_WIDGET_NAMES = new Set(ENGAGEMENT_STATES.filter((s) => s.trendWidget).map((s) => s.trendWidget));
+
+function dropPillOnlyWidgets(rows) {
+  return rows.map((row) => row.filter((w) => !PILL_ONLY_WIDGET_NAMES.has(w.name))).filter((row) => row.length);
+}
+
 // balbridge.yml puts the exits-summary pair + the destination breakdown
-// table in one row, and "Returns After Permanent Placement" + its trend
-// table alone in the row right after. Regrouped here: the exits row is
-// split into the summary pair alone (6/12, renderRowWidgets above) and the
-// destination table alone beneath it (SPAN_OVERRIDES widens it to 6/12 to
-// match); the returns row is dropped from this tab's output entirely --
-// per explicit request it now renders on System Engagement instead, folded
-// into the "Returned" glossary tile (see renderTab's use of findWidget()
-// for "Returns After Placement — Trend"). The underlying query is
-// untouched, this is a render-time-only move.
+// table in one row, and "Returns After Permanent Placement" (now redundant
+// with the "Returned" glossary tile's own household count, which is this
+// same measure) alone in the row right after. Regrouped here: the exits
+// row is split into the summary pair alone (6/12, renderRowWidgets above)
+// and the destination table alone beneath it (SPAN_OVERRIDES widens it to
+// 6/12 to match); the orphaned returns-metric row is dropped entirely. Its
+// trend widget is handled generically above (dropPillOnlyWidgets), since
+// unlike this metric it's still in use, just on a different tab.
 function restructurePositiveOutcomesRows(rows) {
-  const withoutReturns = rows.filter((row) => !row.some((w) => w.name === "Returns After Permanent Placement" || w.name === "Returns After Placement — Trend"));
-  const exitsRowIndex = withoutReturns.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
-  if (exitsRowIndex === -1) return withoutReturns;
-  const exitsRow = withoutReturns[exitsRowIndex];
+  const withoutReturnsMetric = rows.map((row) => row.filter((w) => w.name !== "Returns After Permanent Placement")).filter((row) => row.length);
+  const exitsRowIndex = withoutReturnsMetric.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
+  if (exitsRowIndex === -1) return withoutReturnsMetric;
+  const exitsRow = withoutReturnsMetric[exitsRowIndex];
   const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destinations This Quarter");
   const summaryRow = exitsRow.filter((w) => w !== destinationWidget);
-  const out = withoutReturns.filter((_, i) => i !== exitsRowIndex);
+  const out = withoutReturnsMetric.filter((_, i) => i !== exitsRowIndex);
   out.splice(exitsRowIndex, 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
   return out;
 }
@@ -476,7 +503,7 @@ function restructurePositiveOutcomesRows(rows) {
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  const rows = mergeQuarterTopRow(restructurePositiveOutcomesRows(tab.rows));
+  const rows = mergeQuarterTopRow(restructurePositiveOutcomesRows(dropPillOnlyWidgets(tab.rows)));
   return html`<div class="bridge-tab">${rows.map((row) => {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`

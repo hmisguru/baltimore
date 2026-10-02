@@ -886,6 +886,143 @@ rows:
           FROM output_rows
           ORDER BY total_sort, household_type, state_sort
         type: table
+  - tab: System Engagement
+    widgets:
+      - col: 4
+        columns:
+          - align: right
+            label: Current Quarter
+            name: current_value
+            number: number
+            hidden: true
+          - align: right
+            label: vs. Average
+            name: pct_of_average
+            number: ".1%"
+            format:
+              - { if: greater_than_or_equal, value: 1, backgroundColor: red, textColor: white, bold: true }
+              - { backgroundColor: green, textColor: white }
+          - label: Comparison
+            name: comparison_label
+          - align: right
+            label: 4-Quarter Average
+            name: rolling_avg_4q
+            number: number
+        id: established_trend
+        name: Established — Trend
+        sql: |
+          WITH scoped AS (
+            SELECT
+              date,
+              SUM(value) AS value
+            FROM `baldashboard.performance_metrics`
+            WHERE category LIKE 'System Engagement History%'
+              AND `set` = 'Households who have been continuously homeless since a prior reporting period'
+              AND project_type = CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END
+            GROUP BY 1
+          ), ranked AS (
+            SELECT date, value, DENSE_RANK() OVER (ORDER BY date DESC) AS period_rank
+            FROM scoped
+          )
+          SELECT
+            'Established households' AS indicator,
+            MAX(IF(period_rank = 1, value, NULL)) AS current_value,
+            AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL)) AS rolling_avg_4q,
+            SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) AS pct_of_average,
+            CASE WHEN SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) >= 1 THEN 'above average' ELSE 'below average' END AS comparison_label
+          FROM ranked
+          WHERE period_rank <= 5
+        type: table
+      - col: 4
+        columns:
+          - align: right
+            label: Current Quarter
+            name: current_value
+            number: number
+            hidden: true
+          - align: right
+            label: vs. Average
+            name: pct_of_average
+            number: ".1%"
+            format:
+              - { if: greater_than_or_equal, value: 1, backgroundColor: red, textColor: white, bold: true }
+              - { backgroundColor: green, textColor: white }
+          - label: Comparison
+            name: comparison_label
+          - align: right
+            label: 4-Quarter Average
+            name: rolling_avg_4q
+            number: number
+        id: new_trend
+        name: New — Trend
+        sql: |
+          WITH scoped AS (
+            SELECT
+              date,
+              SUM(value) AS value
+            FROM `baldashboard.performance_metrics`
+            WHERE category LIKE 'System Engagement History%'
+              AND `set` = 'Households experiencing homelessness for the first time this reporting period'
+              AND project_type = CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END
+            GROUP BY 1
+          ), ranked AS (
+            SELECT date, value, DENSE_RANK() OVER (ORDER BY date DESC) AS period_rank
+            FROM scoped
+          )
+          SELECT
+            'New households' AS indicator,
+            MAX(IF(period_rank = 1, value, NULL)) AS current_value,
+            AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL)) AS rolling_avg_4q,
+            SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) AS pct_of_average,
+            CASE WHEN SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) >= 1 THEN 'above average' ELSE 'below average' END AS comparison_label
+          FROM ranked
+          WHERE period_rank <= 5
+        type: table
+      - col: 4
+        columns:
+          - align: right
+            label: Current Quarter
+            name: current_value
+            number: number
+            hidden: true
+          - align: right
+            label: vs. Average
+            name: pct_of_average
+            number: ".1%"
+            format:
+              - { if: greater_than_or_equal, value: 1, backgroundColor: red, textColor: white, bold: true }
+              - { backgroundColor: green, textColor: white }
+          - label: Comparison
+            name: comparison_label
+          - align: right
+            label: 4-Quarter Average
+            name: rolling_avg_4q
+            number: number
+        id: recurring_trend
+        name: Recurring — Trend
+        sql: |
+          WITH scoped AS (
+            SELECT
+              date,
+              SUM(value) AS value
+            FROM `baldashboard.performance_metrics`
+            WHERE category LIKE 'System Engagement History%'
+              AND `set` = 'Households who re-engaged in the homeless system after a previous temporary or unknown destination'
+              AND project_type = CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END
+            GROUP BY 1
+          ), ranked AS (
+            SELECT date, value, DENSE_RANK() OVER (ORDER BY date DESC) AS period_rank
+            FROM scoped
+          )
+          SELECT
+            'Recurring households' AS indicator,
+            MAX(IF(period_rank = 1, value, NULL)) AS current_value,
+            AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL)) AS rolling_avg_4q,
+            SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) AS pct_of_average,
+            CASE WHEN SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)), AVG(IF(period_rank BETWEEN 2 AND 5, value, NULL))) >= 1 THEN 'above average' ELSE 'below average' END AS comparison_label
+          FROM ranked
+          WHERE period_rank <= 5
+        type: table
   - tab: Positive Outcomes
     widgets:
       - col: 12
