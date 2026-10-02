@@ -280,12 +280,14 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 // the rest of the row beside it. "Top Permanent Destinations This Quarter"
 // keeps its YAML col:5 only because it used to share a row with the exits
 // summary tile; restructurePositiveOutcomesRows() below moves it to its own
-// row beneath the two summary tiles, where it reads better at the full
-// 12/12 width than left-aligned and narrow.
+// row beneath the two summary tiles. It's pinned to 6/12 (rather than the
+// full 12/12) to match the width of "Households Exiting to Permanent
+// Housing" directly above it -- grid auto-placement puts it at column 1
+// same as that tile, so it lines up on the left edge too, not just width.
 const SPAN_OVERRIDES = {
   "Current Quarter": 3,
   "Project Type Filter Note": 9,
-  "Top Permanent Destinations This Quarter": 12
+  "Top Permanent Destinations This Quarter": 6
 };
 
 function renderWidget(bridge, widget, filterValues) {
