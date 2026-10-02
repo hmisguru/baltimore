@@ -265,10 +265,52 @@ function renderWidget(bridge, widget, filterValues) {
   </section>`;
 }
 
+// Glossary of the 4 engagement states shown on the System Engagement tab's
+// treemap and quarter-over-quarter table -- not a DAC widget, so it's a
+// hand-built component (like renderAbout) rather than something driven by
+// bridge/balbridge.yml. Labels match the chart's own labels (the SQL's
+// `CASE ... AS engagement_state` in that YAML) exactly, including
+// "Recurring" per explicit choice, so there's no mismatch between this
+// glossary and what the chart below it actually says.
+const ENGAGEMENT_STATES = [
+  {
+    label: "Established",
+    accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed",
+    definition: "A household persistently in the homeless housing system that doesn't fit the other states."
+  },
+  {
+    label: "New",
+    accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6",
+    definition: "A first-time household in the system: entered an ES, SH, TH, RRH:H, or PSH project during the report period and was not enrolled in such projects at any point in the two years prior to entry."
+  },
+  {
+    label: "Recurring",
+    accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9",
+    definition: "A household re-engaging with the system from a temporary or unknown destination: entered an ES, SH, TH, RRH:H, or PSH project during the report period, with a previous exit to a temporary/unknown destination from a continuum project in the 15-730 days prior."
+  },
+  {
+    label: "Returned",
+    accent: "#eda100", bg: "#f9f5eb", border: "#eddbb6",
+    definition: "A household returning to the system from a permanent destination: entered an ES, SH, TH, RRH:H, or PSH project during the report period, with a previous exit to a permanent destination from a continuum project in the 15-730 days prior."
+  }
+];
+
+function renderEngagementLegend() {
+  return html`<div class="bridge-legend" aria-label="Engagement state definitions">${ENGAGEMENT_STATES.map((s) => html`
+    <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent}">
+      <p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>
+      <p>${s.definition}</p>
+    </div>
+  `)}</div>`;
+}
+
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  return html`<div class="bridge-tab">${tab.rows.map((row) => html`<div class="bridge-row">${row.map((w) => renderWidget(bridge, w, filterValues))}</div>`)}</div>`;
+  return html`<div class="bridge-tab">${tab.rows.map((row) => html`
+    ${row.some((w) => w.name === "System engagement by household type") ? renderEngagementLegend() : null}
+    <div class="bridge-row">${row.map((w) => renderWidget(bridge, w, filterValues))}</div>
+  `)}</div>`;
 }
 
 // The dashboard's untabbed text notes, shown above the filters: each note's
