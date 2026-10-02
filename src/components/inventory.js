@@ -1,0 +1,189 @@
+// Renders the Housing Inventory dashboard (inventory/balinventory.yml) from
+// the build-time results in src/data/inventory.json: one renderer per DAC
+// widget type, driven by each widget's own display config, so the YAML
+// stays the single definition of what each widget shows. Patterned after
+// bridge.js (filter-combination result lookup, Inputs.select filters), but
+// this dashboard's one pivot shape -- two nested ROW levels (project type,
+// then household type or project name) with no column dimension and three
+// side-by-side value columns (Beds, Units, Average Utilization) -- is
+// different from coordinated-entry.js's existing pivot_table renderer
+// (single row field x single column field, one summed value), so it gets
+// its own renderer here rather than reusing that one.
+
+import {format as d3format} from "npm:d3-format";
+import {html} from "npm:htl";
+import * as Inputs from "npm:@observablehq/inputs";
+
+/** The widget's result for the chosen filters, as an array of row objects. */
+function widgetRows(doc, widget, filterValues) {
+  const qid = doc.results[filterValues.join("|")]?.[widget.id];
+  if (!qid) return [];
+  const {columns, rows} = doc.data[qid];
+  return rows.map((r) => Object.fromEntries(columns.map((c, i) => [c, r[i]])));
+}
+
+function numberFormat(spec) {
+  if (!spec || spec === "number") return d3format(",~f");
+  try {
+    return d3format(spec);
+  } catch {
+    return String;
+  }
+}
+
+const uniq = (rows, field) => [...new Set(rows.map((d) => d[field]))];
+
+function empty() {
+  return html`<p class="inv-empty">No data for this selection.</p>`;
+}
+
+function renderMetric(widget, rows) {
+  if (!rows.length) return empty();
+  const {field, format, type} = widget.value ?? {};
+  const raw = rows[0][field];
+  const text = type === "number" && raw != null ? numberFormat(format)(raw) : raw ?? "—";
+  return html`<div class="inv-metric${type === "number" ? "" : " inv-metric-text"}">${text}</div>`;
+}
+
+// Gradient cell backgrounds: DAC's conditional-format "no if" layer
+// (backgroundColor: a list of named colors, range: the value at each
+// stop, unit: absolute -- the range values ARE the raw data values, not
+// percentiles). Light pastel stops (not the saturated token names
+// themselves) so dark body text stays readable at every point along the
+// gradient, the same convention the create-dashboard skill's own gradient
+// example uses.
+const GRADIENT_COLORS = {red: "#FECACA", amber: "#FDE68A", green: "#BBF7D0"};
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function gradientFor(formatLayers, value) {
+  const layer = (formatLayers ?? []).find((l) => !l.if && Array.isArray(l.backgroundColor));
+  if (!layer || value == null) return null;
+  const stops = layer.range ?? layer.backgroundColor.map((_, i) => i / (layer.backgroundColor.length - 1));
+  const colors = layer.backgroundColor.map((c) => GRADIENT_COLORS[c] ?? c);
+  if (value <= stops[0]) return colors[0];
+  if (value >= stops[stops.length - 1]) return colors[colors.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (value >= stops[i] && value <= stops[i + 1]) {
+      const t = (value - stops[i]) / (stops[i + 1] - stops[i]);
+      const [r1, g1, b1] = hexToRgb(colors[i]);
+      const [r2, g2, b2] = hexToRgb(colors[i + 1]);
+      const mix = (a, b) => Math.round(a + (b - a) * t);
+      return `rgb(${mix(r1, r2)},${mix(g1, g2)},${mix(b1, b2)})`;
+    }
+  }
+  return null;
+}
+
+// Canonical display order, matching this dashboard's own metric tile order
+// (crisis/temporary housing first, then permanent) rather than SQL's
+// arbitrary GROUP BY order.
+const PROJECT_TYPE_ORDER = [
+  "Emergency Shelter", "Safe Haven", "Transitional Housing",
+  "Rapid Re-Housing", "Permanent Supportive Housing", "Other Permanent Housing"
+];
+const HOUSEHOLD_TYPE_ORDER = [
+  "Households with Adults Only", "Households with Adults and Children",
+  "Unaccompanied Minors", "Unknown HH Type"
+];
+
+function sortByOrder(keys, order) {
+  if (!order) return [...keys].sort();
+  return [...keys].sort((a, b) => {
+    const ai = order.indexOf(a), bi = order.indexOf(b);
+    return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
+  });
+}
+
+// Nested-row pivot: two row levels (no column dimension), one column per
+// `pivot.values[]` entry. The outer level's value is shown once per group
+// via rowspan; each value column's own `columns[]` number format and
+// conditional-format rules (including the gradient case above) apply per
+// cell. The underlying queries already pre-aggregate to this exact
+// (outer, inner) grain, so this is a pure layout transform, not a
+// client-side re-aggregation.
+function renderNestedPivot(widget, rows) {
+  if (!rows.length) return empty();
+  const [outerSpec, innerSpec] = widget.pivot.rows;
+  const outerField = outerSpec.field, innerField = innerSpec.field;
+  const valueSpecs = widget.pivot.values;
+  const columnFormat = (label) => widget.columns?.find((c) => c.name === label)?.number;
+
+  const outerOrder = outerField === "project_type_label" ? PROJECT_TYPE_ORDER : null;
+  const innerOrder = innerField === "household_type_label" ? HOUSEHOLD_TYPE_ORDER : null;
+
+  const outerKeys = sortByOrder(uniq(rows, outerField), outerOrder);
+  const groups = outerKeys.map((ok) => ({
+    key: ok,
+    inner: sortByOrder(uniq(rows.filter((r) => r[outerField] === ok), innerField), innerOrder)
+  }));
+  const cellRow = (ok, ik) => rows.find((r) => r[outerField] === ok && r[innerField] === ik);
+
+  return html`<div class="inv-table-wrap"><table class="inv-table">
+    <thead><tr>
+      <th scope="col"></th><th scope="col"></th>
+      ${valueSpecs.map((v) => html`<th scope="col">${v.label}</th>`)}
+    </tr></thead>
+    <tbody>${groups.flatMap(({key, inner}) => inner.map((ik, i) => {
+      const r = cellRow(key, ik);
+      return html`<tr>
+        ${i === 0 ? html`<th scope="row" rowspan=${inner.length}>${key}</th>` : null}
+        <th scope="row">${ik}</th>
+        ${valueSpecs.map((v) => {
+          const val = r?.[v.field];
+          const fmt = numberFormat(columnFormat(v.label));
+          const text = val == null ? "—" : fmt(val);
+          const bg = gradientFor(v.format, val);
+          return html`<td style=${bg ? `background:${bg}` : ""}>${text}</td>`;
+        })}
+      </tr>`;
+    }))}</tbody>
+  </table></div>`;
+}
+
+function renderWidget(doc, widget, filterValues) {
+  const rows = widgetRows(doc, widget, filterValues);
+  let body;
+  if (widget.type === "metric") body = renderMetric(widget, rows);
+  else if (widget.type === "pivot_table") body = renderNestedPivot(widget, rows);
+  else body = html`<p class="inv-empty">Unsupported widget type: ${widget.type}</p>`;
+
+  return html`<section class="inv-card${widget.type === "metric" ? " inv-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
+    <h3 class="inv-card-title">${widget.name}</h3>
+    ${widget.description ? html`<p class="inv-card-description">${widget.description}</p>` : null}
+    ${body}
+  </section>`;
+}
+
+/** All rows of the dashboard, laid out on its 12-column grid, for the chosen filters. */
+export function renderRows(doc, filterValues) {
+  return html`<div class="inv-page">${doc.rows.map((row) => html`<div class="inv-row">${row.map((w) => renderWidget(doc, w, filterValues))}</div>`)}</div>`;
+}
+
+// Loose matching for option names given in a URL: case, spaces and
+// punctuation are ignored, same convention as bridge.js's own `match()`.
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const match = (options, value) => (value == null ? undefined : options.find((o) => slug(o) === slug(value)));
+
+/**
+ * The two filter selects, starting from the dashboard's defaults unless
+ * `initial` names a valid {household, participation}. Filter values stay in
+ * the dashboard's own order (household_type, hmis_participation) for result
+ * lookups.
+ */
+export function inventoryInputs(doc, initial = {}) {
+  const [householdFilter, participationFilter] = doc.filters;
+  const household = Inputs.select(householdFilter.options, {label: "Household type", value: match(householdFilter.options, initial.household) ?? householdFilter.default});
+  const participation = Inputs.select(participationFilter.options, {label: "HMIS participation", value: match(participationFilter.options, initial.participation) ?? participationFilter.default});
+  return {household, participation, controls: html`<div class="inv-controls">${household}${participation}</div>`};
+}
+
+const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZone: "America/New_York", ...options});
+
+/** "Dashboard refreshed …", in Eastern time. */
+export function renderFootnote(doc) {
+  return html`<p class="inv-footnote">Dashboard refreshed ${eastern(doc.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`;
+}

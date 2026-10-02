@@ -1,0 +1,26 @@
+/* Housing Inventory dashboard styles, scoped to /inventory/. */
+:root { --inv-purple: #60397c; --inv-deep: #2f1c3d; --inv-gold: #fabe21; --inv-surface: #f4fafb; --inv-border: #d9e7ea; --inv-muted: #4f4a57; }
+#observablehq-main { max-width: 1280px; }
+.inv-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
+.inv-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--inv-purple); }
+.inv-lede { margin: 0 0 16px; color: var(--inv-muted); max-width: 70ch; }
+.inv-controls { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.inv-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.inv-card { grid-column: span var(--span); min-width: 0; padding: 16px 20px; background: var(--inv-surface); border: 1px solid var(--inv-border); border-radius: 12px; }
+.inv-card-metric { border-top: 4px solid var(--inv-gold); }
+.inv-card-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--inv-deep); max-width: none; }
+.inv-card-description { margin: 0 0 10px; font-size: 13px; color: var(--inv-muted); max-width: none; }
+.inv-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
+.inv-metric-text { font-size: 18px; font-weight: 600; line-height: 1.4; color: #161616; }
+.inv-empty { color: var(--inv-muted); font-style: italic; margin: 0; }
+.inv-table-wrap { overflow-x: auto; }
+.inv-table { width: 100%; max-width: none; font-size: 14px; border-collapse: collapse; }
+.inv-table th { vertical-align: top; font-size: 13px; padding: 6px 10px; border-bottom: 1px solid var(--inv-border); text-align: left; }
+.inv-table thead th { vertical-align: bottom; }
+.inv-table td { padding: 6px 10px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; text-align: right; }
+.inv-table tbody tr:last-child td { border-bottom: 0; }
+.inv-footnote { font-size: 13px; color: var(--inv-muted); max-width: none; }
+@media (max-width: 760px) {
+  .inv-row { grid-template-columns: 1fr; }
+  .inv-card { grid-column: 1 / -1; }
+}

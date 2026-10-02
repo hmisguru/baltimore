@@ -1,0 +1,846 @@
+name: Housing Inventory Dashboard
+description: Data on housing resources from shelters to permanent housing sites.
+connection: balhmiscsv
+
+filters:
+  - name: household_type
+    type: select
+    default: "All"
+    options:
+      values: ["All", "Households with Adults Only", "Households with Adults and Children", "Unaccompanied Minors"]
+  - name: hmis_participation
+    type: select
+    default: "All"
+    options:
+      values: ["All", "HMIS Participating", "Non-HMIS Participating"]
+
+rows:
+  - widgets:
+      - name: Methodology
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          )
+          SELECT
+            CONCAT(
+              'This dashboard shows inventory as of ', FORMAT_DATE('%-m/%-d/%Y', ExportEndDate),
+              ", with utilization based on that month's average."
+            ) AS as_of_label
+          FROM export_info
+        value:
+          field: as_of_label
+          type: category
+        col: 12
+  - widgets:
+      - name: Emergency Shelter Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS es_beds
+          FROM current_inventory
+          WHERE ProjectType IN (0, 1)
+        value:
+          field: es_beds
+          type: number
+        col: 4
+      - name: Safe Haven Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS sh_beds
+          FROM current_inventory
+          WHERE ProjectType = 8
+        value:
+          field: sh_beds
+          type: number
+        col: 4
+      - name: Transitional Housing Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS th_beds
+          FROM current_inventory
+          WHERE ProjectType = 2
+        value:
+          field: th_beds
+          type: number
+        col: 4
+  - widgets:
+      - name: Rapid Re-Housing Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS rrh_beds
+          FROM current_inventory
+          WHERE ProjectType = 13
+        value:
+          field: rrh_beds
+          type: number
+        col: 4
+      - name: Permanent Supportive Housing Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS psh_beds
+          FROM current_inventory
+          WHERE ProjectType = 3
+        value:
+          field: psh_beds
+          type: number
+        col: 4
+      - name: Other Permanent Housing Beds
+        type: metric
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.BedInventory, p.ProjectType
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          )
+          SELECT COALESCE(SUM(BedInventory), 0) AS oph_beds
+          FROM current_inventory
+          WHERE ProjectType IN (9, 10)
+        value:
+          field: oph_beds
+          type: number
+        col: 4
+  - widgets:
+      - name: Current Inventory by Project Type
+        type: pivot_table
+        description: "This is a pivot table: each project type has its household types nested underneath as rows. Beds / Units / Average Utilization appear as columns. \"Emergency Shelter\" combines both night-by-night and entry/exit tracked shelters (ProjectType 0 and 1). \"Safe Haven\" (ProjectType 8) is its own row, not folded into Other Permanent Housing -- it's crisis/temporary housing like ES, not a permanent housing type. \"Other Permanent Housing\" covers PH - Housing Only and PH - Housing with Services (ProjectType 9 and 10) only. If the household_type filter above is set to something other than \"All\", the other household-type rows will be empty, since the underlying data is already filtered down to just the selected type. Average Utilization is a MONTHLY AVERAGE, not a single-day snapshot: total occupied bed-nights during the calendar month containing the latest export date, divided by total available bed-nights (bed inventory x days that inventory record actually overlaps the month) for that PROJECT + HOUSEHOLD TYPE slice, and only for projects that participate in HMIS (HMISParticipation.HMISParticipationType = 1 as of the export date). Occupied bed-nights: night-by-night shelters (ProjectType 1) count one bed-night per bed-night service record within the month; entry/exit shelters, transitional housing, and Safe Haven (ProjectType 0, 2, 8) count days of active enrollment overlapping the month per person; RRH, PSH, and other permanent housing (ProjectType 13, 3, 9, 10) count days of active enrollment on or after the household's move-in date -- confirmed empirically that Safe Haven never populates MoveInDate or bed-night records in this dataset, so it uses the active-enrollment method instead, not the move-in-date one. Household type is still classified once, as of the export date, by the ages of each occupying household's actual co-occupying members (all under 18 = Unaccompanied Minors, a mix = Adults and Children, all 18+ = Adults Only, matching Inventory's own HouseholdType codes) -- not re-derived per day, to avoid ambiguity from a birthday falling mid-month. Non-participating projects don't track stays in HMIS at all, so their bed-nights would otherwise look artificially near-empty; instead their rate falls back to ClientTrack's HMISPITCount (dated Point-in-Time counts synced via CTAPI), approximated per household type -- AdultOnlyHouseholds/ChildOnlyHouseholds as clients (one person per household, since neither bucket reports its own client count), Adults and Children clients backed into as TotalClients minus the other two -- from the most recent PITDate on or before the export date, divided by that specific household type's own current bed inventory -- a single point-in-time ratio, not a monthly average, since a PIT count has no time dimension to average. A rate over 100% means more bed-nights were occupied than available for that slice -- shown as-is rather than capped, since it's a real over-capacity signal worth surfacing. When a cell combines more than one project, Average Utilization is a true bed-night-weighted rollup (SUM(occupied bed-nights)/SUM(available bed-nights) for every project in that cell), not an unweighted average of each project's own rate -- the underlying query pre-aggregates by GROUP BY to each pivot cell's exact grain, computing that weighted ratio directly in SQL rather than in the pivot. Beds and Units still show the current snapshot inventory (as of the export date), not a monthly average of bed counts."
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          target_month AS (
+            SELECT
+              DATE_TRUNC(ExportEndDate, MONTH) AS month_start,
+              LAST_DAY(ExportEndDate, MONTH) AS month_end
+            FROM export_info
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.ProjectID, i.BedInventory, i.UnitInventory, i.HouseholdType, p.ProjectType,
+              i.InventoryStartDate, i.InventoryEndDate
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          ),
+          hoh_movein AS (
+            -- Safe Haven (ProjectType 8) is excluded here -- confirmed empirically that
+            -- neither Safe Haven project in this dataset has ever recorded a MoveInDate
+            -- or a bed-night record; it's occupied via active enrollment below instead,
+            -- like ES E/E and TH.
+            SELECT en.HouseholdID, en.ProjectID, en.MoveInDate
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            WHERE p.ProjectType NOT IN (0, 1, 2, 8)
+              AND en.RelationshipToHoH = 1
+              AND en.MoveInDate IS NOT NULL
+          ),
+          occupying_month AS (
+            -- Anyone with any qualifying bed-night/enrolled-day touching the target
+            -- month at all, as a SET (for household-type classification below) --
+            -- actual bed-night day-counts are computed separately in person_bed_nights.
+            SELECT DISTINCT s.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Services s
+            JOIN balhmiscsv.Enrollment en ON s.EnrollmentID = en.EnrollmentID
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND p.ProjectType = 1
+              AND s.DateProvided BETWEEN tm.month_start AND tm.month_end
+
+            UNION DISTINCT
+
+            SELECT DISTINCT en.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE p.ProjectType IN (0, 2, 8)
+              AND en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+
+            UNION DISTINCT
+
+            SELECT DISTINCT en.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Enrollment en
+            JOIN hoh_movein hm ON en.HouseholdID = hm.HouseholdID AND en.ProjectID = hm.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+              AND hm.MoveInDate <= tm.month_end
+          ),
+          occupying_with_age AS (
+            SELECT o.PersonalID, o.ProjectID, o.HouseholdID,
+              c.DOB <= DATE_SUB(e.ExportEndDate, INTERVAL 18 YEAR) AS is_adult
+            FROM occupying_month o
+            JOIN balhmiscsv.Client c ON o.PersonalID = c.PersonalID
+            CROSS JOIN export_info e
+          ),
+          household_types AS (
+            -- classify each occupying household by the ages of its own co-occupying
+            -- members as of the export date, matching Inventory's HouseholdType codes
+            -- (1/3/4); NULL when every member's DOB is unknown -- held constant for the
+            -- whole month rather than re-derived per day, to avoid ambiguity from a
+            -- birthday falling mid-month
+            SELECT ProjectID, HouseholdID,
+              CASE
+                WHEN LOGICAL_OR(is_adult) IS NULL AND LOGICAL_OR(NOT is_adult) IS NULL THEN NULL
+                WHEN COALESCE(LOGICAL_OR(is_adult), FALSE) AND COALESCE(LOGICAL_OR(NOT is_adult), FALSE) THEN 3
+                WHEN COALESCE(LOGICAL_OR(is_adult), FALSE) THEN 1
+                ELSE 4
+              END AS derived_household_type
+            FROM occupying_with_age
+            GROUP BY ProjectID, HouseholdID
+          ),
+          person_bed_nights AS (
+            -- ES NbN: one bed-night per Services record within the month
+            SELECT s.PersonalID, en.ProjectID, en.HouseholdID, COUNT(*) AS bed_nights
+            FROM balhmiscsv.Services s
+            JOIN balhmiscsv.Enrollment en ON s.EnrollmentID = en.EnrollmentID
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND p.ProjectType = 1
+              AND s.DateProvided BETWEEN tm.month_start AND tm.month_end
+            GROUP BY 1, 2, 3
+
+            UNION ALL
+
+            -- ES E/E, TH, Safe Haven: days of active enrollment overlapping the month
+            SELECT en.PersonalID, en.ProjectID, en.HouseholdID,
+              GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(DATE_SUB(ex.ExitDate, INTERVAL 1 DAY), tm.month_end)),
+                GREATEST(tm.month_start, en.EntryDate),
+                DAY
+              ) + 1) AS bed_nights
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE p.ProjectType IN (0, 2, 8)
+              AND en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+
+            UNION ALL
+
+            -- RRH, PSH, Other PH: days of active enrollment on/after the household's move-in date
+            SELECT en.PersonalID, en.ProjectID, en.HouseholdID,
+              GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(DATE_SUB(ex.ExitDate, INTERVAL 1 DAY), tm.month_end)),
+                GREATEST(tm.month_start, en.EntryDate, hm.MoveInDate),
+                DAY
+              ) + 1) AS bed_nights
+            FROM balhmiscsv.Enrollment en
+            JOIN hoh_movein hm ON en.HouseholdID = hm.HouseholdID AND en.ProjectID = hm.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+              AND hm.MoveInDate <= tm.month_end
+          ),
+          project_bed_nights_by_type AS (
+            SELECT pbn.ProjectID, ht.derived_household_type,
+              SUM(GREATEST(pbn.bed_nights, 0)) AS occupied_bed_nights
+            FROM person_bed_nights pbn
+            JOIN household_types ht ON pbn.ProjectID = ht.ProjectID AND pbn.HouseholdID = ht.HouseholdID
+            GROUP BY 1, 2
+          ),
+          latest_pitcount AS (
+            -- most recent HMISPITCount record on or before the export date, per
+            -- ClientTrack program (ProgramID = balhmiscsv Project/Inventory.ProjectID)
+            SELECT
+              pc.ProgramID, pc.AdultOnlyHouseholds, pc.ChildOnlyHouseholds, pc.TotalClients,
+              ROW_NUMBER() OVER (PARTITION BY pc.ProgramID ORDER BY pc.PITDate DESC) AS rn
+            FROM clienttrack.HMISPITCount pc
+            CROSS JOIN export_info e
+            WHERE pc.ActiveStatus = 'A' AND pc.PITDate <= e.ExportEndDate
+          ),
+          pit_clients_by_household_type AS (
+            -- Approximate PERSON-level PIT counts by household type for the fallback
+            -- below, from ClientTrack's HOUSEHOLD-level breakdown (HMISPITCount has no
+            -- client-level breakdown by household type, only a TotalClients grand
+            -- total): one client per Adults Only or Unaccompanied Minors household is
+            -- assumed, since neither bucket reports its own client count; Adults and
+            -- Children clients are backed into as TotalClients minus the other two.
+            -- NULL propagates through naturally when a project's nearest PIT count
+            -- has no household breakdown at all (rather than misattributing an unknown
+            -- split as if it were entirely Adults and Children).
+            SELECT ProgramID, 1 AS HouseholdType, AdultOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+            UNION ALL
+            SELECT ProgramID, 4 AS HouseholdType, ChildOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+            UNION ALL
+            SELECT ProgramID, 3 AS HouseholdType,
+              TotalClients - AdultOnlyHouseholds - ChildOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+          ),
+          inventory_bed_nights AS (
+            -- available bed-nights this month, clipped to the days this specific
+            -- inventory record actually overlaps the month (handles a mid-month
+            -- inventory start/end without assuming a full month of availability)
+            SELECT ci.ProjectID, ci.BedInventory, ci.UnitInventory, ci.HouseholdType, ci.ProjectType,
+              ci.BedInventory * GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
+                GREATEST(tm.month_start, ci.InventoryStartDate),
+                DAY
+              ) + 1) AS available_bed_nights
+            FROM current_inventory ci
+            CROSS JOIN target_month tm
+          ),
+          rated_inventory AS (
+            SELECT
+              ib.ProjectID,
+              ib.BedInventory AS bed_inventory,
+              ib.UnitInventory AS unit_inventory,
+              ib.available_bed_nights,
+              CASE
+                WHEN COALESCE(hp.HMISParticipationType, 1) = 1
+                  THEN SAFE_DIVIDE(COALESCE(pbnt.occupied_bed_nights, 0), ib.available_bed_nights)
+                ELSE SAFE_DIVIDE(pcbht.approx_clients, ib.BedInventory)
+              END AS utilization_rate,
+              CASE
+                WHEN ib.ProjectType IN (0, 1) THEN 'Emergency Shelter'
+                WHEN ib.ProjectType = 2 THEN 'Transitional Housing'
+                WHEN ib.ProjectType = 13 THEN 'Rapid Re-Housing'
+                WHEN ib.ProjectType = 3 THEN 'Permanent Supportive Housing'
+                WHEN ib.ProjectType = 8 THEN 'Safe Haven'
+                ELSE 'Other Permanent Housing'
+              END AS project_type_label,
+              CASE
+                WHEN ib.HouseholdType = 1 THEN 'Households with Adults Only'
+                WHEN ib.HouseholdType = 3 THEN 'Households with Adults and Children'
+                WHEN ib.HouseholdType = 4 THEN 'Unaccompanied Minors'
+                ELSE 'Unknown HH Type'
+              END AS household_type_label
+            FROM inventory_bed_nights ib
+            LEFT JOIN project_bed_nights_by_type pbnt
+              ON ib.ProjectID = pbnt.ProjectID AND ib.HouseholdType = pbnt.derived_household_type
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = ib.ProjectID
+            LEFT JOIN pit_clients_by_household_type pcbht
+              ON pcbht.ProgramID = ib.ProjectID AND pcbht.HouseholdType = ib.HouseholdType
+          )
+          -- Pre-aggregated to the exact same grain as the pivot's own rows
+          -- (project_type_label, household_type_label), so the pivot's
+          -- `summarize: average`/`sum` over these already-collapsed rows just
+          -- passes each cell's value through unchanged -- no per-widget formula
+          -- needed. The weighted rate itself is reconstructed as
+          -- SUM(rate * available)/SUM(available) = SUM(occupied)/SUM(available)
+          -- across every contributing project, identical math to (and confirmed
+          -- against) a per-bed-night row expansion, but returned as a handful of
+          -- rows instead of one row per available bed-night this month (up to
+          -- ~228K rows) -- that expansion was too large a payload for the
+          -- dashboard to load reliably and has been replaced with this GROUP BY.
+          SELECT
+            ri.project_type_label,
+            ri.household_type_label,
+            SUM(ri.bed_inventory) AS bed_inventory,
+            SUM(ri.unit_inventory) AS unit_inventory,
+            SAFE_DIVIDE(SUM(ri.utilization_rate * ri.available_bed_nights), SUM(ri.available_bed_nights)) AS utilization_rate
+          FROM rated_inventory ri
+          GROUP BY ri.project_type_label, ri.household_type_label
+        pivot:
+          rows:
+            - field: project_type_label
+            - field: household_type_label
+          values:
+            - field: bed_inventory
+              summarize: sum
+              label: Beds
+            - field: unit_inventory
+              summarize: sum
+              label: Units
+            - field: utilization_rate
+              summarize: average
+              label: Average Utilization
+              format:
+                - backgroundColor: [red, amber, green]
+                  range: [0, 0.5, 1]
+                  unit: absolute
+        columns:
+          - name: Average Utilization
+            number: ".0%"
+        col: 12
+  - widgets:
+      - name: Current Inventory by Project
+        type: pivot_table
+        description: "Same data as \"Current Inventory by Project Type\" above, but broken down by specific project (name, not ID) instead of household type -- household type is left out entirely. Beds / Units / Average Utilization appear as columns, nested under each project type. Average Utilization is the same monthly bed-night average (occupied bed-nights / available bed-nights during the calendar month containing the latest export date, using the identical per-project-type occupancy logic -- bed-night for ProjectType 1, active enrollment for ProjectType 0/2/8, move-in date for ProjectType 13/3/9/10, HMISPITCount fallback for non-HMIS-participating projects) and the same bed-night-weighted rollup as the project-type view -- a project's Average Utilization here already correctly combines all its household-type inventory rows (e.g. Adults Only + Adults and Children beds) into one true occupied/available ratio for that project."
+        sql: |
+          WITH export_info AS (
+            SELECT ExportEndDate FROM balhmiscsv.Export
+          ),
+          target_month AS (
+            SELECT
+              DATE_TRUNC(ExportEndDate, MONTH) AS month_start,
+              LAST_DAY(ExportEndDate, MONTH) AS month_end
+            FROM export_info
+          ),
+          hmis_participation AS (
+            SELECT h.ProjectID, h.HMISParticipationType
+            FROM balhmiscsv.HMISParticipation h
+            CROSS JOIN export_info e
+            WHERE h.DateDeleted IS NULL
+              AND h.HMISParticipationStatusStartDate <= e.ExportEndDate
+              AND (h.HMISParticipationStatusEndDate IS NULL OR h.HMISParticipationStatusEndDate >= e.ExportEndDate)
+          ),
+          current_inventory AS (
+            SELECT i.ProjectID, i.BedInventory, i.UnitInventory, i.HouseholdType, p.ProjectType, p.ProjectName,
+              i.InventoryStartDate, i.InventoryEndDate
+            FROM balhmiscsv.Inventory i
+            JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
+            CROSS JOIN export_info e
+            WHERE i.DateDeleted IS NULL
+              AND i.InventoryStartDate <= e.ExportEndDate
+              AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= e.ExportEndDate)
+              AND (
+                '{{ filters.household_type }}' = 'All'
+                OR ('{{ filters.household_type }}' = 'Households with Adults Only' AND i.HouseholdType = 1)
+                OR ('{{ filters.household_type }}' = 'Households with Adults and Children' AND i.HouseholdType = 3)
+                OR ('{{ filters.household_type }}' = 'Unaccompanied Minors' AND i.HouseholdType = 4)
+              )
+              AND (
+                '{{ filters.hmis_participation }}' = 'All'
+                OR ('{{ filters.hmis_participation }}' = 'HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 1)
+                OR ('{{ filters.hmis_participation }}' = 'Non-HMIS Participating' AND COALESCE(hp.HMISParticipationType, 1) = 0)
+              )
+          ),
+          hoh_movein AS (
+            -- Safe Haven (ProjectType 8) is excluded here -- confirmed empirically that
+            -- neither Safe Haven project in this dataset has ever recorded a MoveInDate
+            -- or a bed-night record; it's occupied via active enrollment below instead,
+            -- like ES E/E and TH.
+            SELECT en.HouseholdID, en.ProjectID, en.MoveInDate
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            WHERE p.ProjectType NOT IN (0, 1, 2, 8)
+              AND en.RelationshipToHoH = 1
+              AND en.MoveInDate IS NOT NULL
+          ),
+          occupying_month AS (
+            -- Anyone with any qualifying bed-night/enrolled-day touching the target
+            -- month at all, as a SET (for household-type classification below) --
+            -- actual bed-night day-counts are computed separately in person_bed_nights.
+            SELECT DISTINCT s.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Services s
+            JOIN balhmiscsv.Enrollment en ON s.EnrollmentID = en.EnrollmentID
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND p.ProjectType = 1
+              AND s.DateProvided BETWEEN tm.month_start AND tm.month_end
+
+            UNION DISTINCT
+
+            SELECT DISTINCT en.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE p.ProjectType IN (0, 2, 8)
+              AND en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+
+            UNION DISTINCT
+
+            SELECT DISTINCT en.PersonalID, en.ProjectID, en.HouseholdID
+            FROM balhmiscsv.Enrollment en
+            JOIN hoh_movein hm ON en.HouseholdID = hm.HouseholdID AND en.ProjectID = hm.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+              AND hm.MoveInDate <= tm.month_end
+          ),
+          occupying_with_age AS (
+            SELECT o.PersonalID, o.ProjectID, o.HouseholdID,
+              c.DOB <= DATE_SUB(e.ExportEndDate, INTERVAL 18 YEAR) AS is_adult
+            FROM occupying_month o
+            JOIN balhmiscsv.Client c ON o.PersonalID = c.PersonalID
+            CROSS JOIN export_info e
+          ),
+          household_types AS (
+            -- classify each occupying household by the ages of its own co-occupying
+            -- members as of the export date, matching Inventory's HouseholdType codes
+            -- (1/3/4); NULL when every member's DOB is unknown -- held constant for the
+            -- whole month rather than re-derived per day, to avoid ambiguity from a
+            -- birthday falling mid-month
+            SELECT ProjectID, HouseholdID,
+              CASE
+                WHEN LOGICAL_OR(is_adult) IS NULL AND LOGICAL_OR(NOT is_adult) IS NULL THEN NULL
+                WHEN COALESCE(LOGICAL_OR(is_adult), FALSE) AND COALESCE(LOGICAL_OR(NOT is_adult), FALSE) THEN 3
+                WHEN COALESCE(LOGICAL_OR(is_adult), FALSE) THEN 1
+                ELSE 4
+              END AS derived_household_type
+            FROM occupying_with_age
+            GROUP BY ProjectID, HouseholdID
+          ),
+          person_bed_nights AS (
+            -- ES NbN: one bed-night per Services record within the month
+            SELECT s.PersonalID, en.ProjectID, en.HouseholdID, COUNT(*) AS bed_nights
+            FROM balhmiscsv.Services s
+            JOIN balhmiscsv.Enrollment en ON s.EnrollmentID = en.EnrollmentID
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND p.ProjectType = 1
+              AND s.DateProvided BETWEEN tm.month_start AND tm.month_end
+            GROUP BY 1, 2, 3
+
+            UNION ALL
+
+            -- ES E/E, TH, Safe Haven: days of active enrollment overlapping the month
+            SELECT en.PersonalID, en.ProjectID, en.HouseholdID,
+              GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(DATE_SUB(ex.ExitDate, INTERVAL 1 DAY), tm.month_end)),
+                GREATEST(tm.month_start, en.EntryDate),
+                DAY
+              ) + 1) AS bed_nights
+            FROM balhmiscsv.Enrollment en
+            JOIN balhmiscsv.Project p ON en.ProjectID = p.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE p.ProjectType IN (0, 2, 8)
+              AND en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+
+            UNION ALL
+
+            -- RRH, PSH, Other PH: days of active enrollment on/after the household's move-in date
+            SELECT en.PersonalID, en.ProjectID, en.HouseholdID,
+              GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(DATE_SUB(ex.ExitDate, INTERVAL 1 DAY), tm.month_end)),
+                GREATEST(tm.month_start, en.EntryDate, hm.MoveInDate),
+                DAY
+              ) + 1) AS bed_nights
+            FROM balhmiscsv.Enrollment en
+            JOIN hoh_movein hm ON en.HouseholdID = hm.HouseholdID AND en.ProjectID = hm.ProjectID
+            LEFT JOIN balhmiscsv.Exit ex ON en.EnrollmentID = ex.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE en.EntryDate <= tm.month_end
+              AND (ex.ExitDate IS NULL OR ex.ExitDate > tm.month_start)
+              AND hm.MoveInDate <= tm.month_end
+          ),
+          project_bed_nights_by_type AS (
+            SELECT pbn.ProjectID, ht.derived_household_type,
+              SUM(GREATEST(pbn.bed_nights, 0)) AS occupied_bed_nights
+            FROM person_bed_nights pbn
+            JOIN household_types ht ON pbn.ProjectID = ht.ProjectID AND pbn.HouseholdID = ht.HouseholdID
+            GROUP BY 1, 2
+          ),
+          latest_pitcount AS (
+            -- most recent HMISPITCount record on or before the export date, per
+            -- ClientTrack program (ProgramID = balhmiscsv Project/Inventory.ProjectID)
+            SELECT
+              pc.ProgramID, pc.AdultOnlyHouseholds, pc.ChildOnlyHouseholds, pc.TotalClients,
+              ROW_NUMBER() OVER (PARTITION BY pc.ProgramID ORDER BY pc.PITDate DESC) AS rn
+            FROM clienttrack.HMISPITCount pc
+            CROSS JOIN export_info e
+            WHERE pc.ActiveStatus = 'A' AND pc.PITDate <= e.ExportEndDate
+          ),
+          pit_clients_by_household_type AS (
+            -- Approximate PERSON-level PIT counts by household type for the fallback
+            -- below, from ClientTrack's HOUSEHOLD-level breakdown (HMISPITCount has no
+            -- client-level breakdown by household type, only a TotalClients grand
+            -- total): one client per Adults Only or Unaccompanied Minors household is
+            -- assumed, since neither bucket reports its own client count; Adults and
+            -- Children clients are backed into as TotalClients minus the other two.
+            -- NULL propagates through naturally when a project's nearest PIT count
+            -- has no household breakdown at all (rather than misattributing an unknown
+            -- split as if it were entirely Adults and Children).
+            SELECT ProgramID, 1 AS HouseholdType, AdultOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+            UNION ALL
+            SELECT ProgramID, 4 AS HouseholdType, ChildOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+            UNION ALL
+            SELECT ProgramID, 3 AS HouseholdType,
+              TotalClients - AdultOnlyHouseholds - ChildOnlyHouseholds AS approx_clients
+            FROM latest_pitcount WHERE rn = 1
+          ),
+          inventory_bed_nights AS (
+            -- available bed-nights this month, clipped to the days this specific
+            -- inventory record actually overlaps the month (handles a mid-month
+            -- inventory start/end without assuming a full month of availability)
+            SELECT ci.ProjectID, ci.ProjectName, ci.BedInventory, ci.UnitInventory, ci.HouseholdType, ci.ProjectType,
+              ci.BedInventory * GREATEST(0, DATE_DIFF(
+                LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
+                GREATEST(tm.month_start, ci.InventoryStartDate),
+                DAY
+              ) + 1) AS available_bed_nights
+            FROM current_inventory ci
+            CROSS JOIN target_month tm
+          ),
+          rated_inventory AS (
+            SELECT
+              ib.ProjectID,
+              ib.ProjectName AS project_name,
+              ib.BedInventory AS bed_inventory,
+              ib.UnitInventory AS unit_inventory,
+              ib.available_bed_nights,
+              CASE
+                WHEN COALESCE(hp.HMISParticipationType, 1) = 1
+                  THEN SAFE_DIVIDE(COALESCE(pbnt.occupied_bed_nights, 0), ib.available_bed_nights)
+                ELSE SAFE_DIVIDE(pcbht.approx_clients, ib.BedInventory)
+              END AS utilization_rate,
+              CASE
+                WHEN ib.ProjectType IN (0, 1) THEN 'Emergency Shelter'
+                WHEN ib.ProjectType = 2 THEN 'Transitional Housing'
+                WHEN ib.ProjectType = 13 THEN 'Rapid Re-Housing'
+                WHEN ib.ProjectType = 3 THEN 'Permanent Supportive Housing'
+                WHEN ib.ProjectType = 8 THEN 'Safe Haven'
+                ELSE 'Other Permanent Housing'
+              END AS project_type_label
+            FROM inventory_bed_nights ib
+            LEFT JOIN project_bed_nights_by_type pbnt
+              ON ib.ProjectID = pbnt.ProjectID AND ib.HouseholdType = pbnt.derived_household_type
+            LEFT JOIN hmis_participation hp ON hp.ProjectID = ib.ProjectID
+            LEFT JOIN pit_clients_by_household_type pcbht
+              ON pcbht.ProgramID = ib.ProjectID AND pcbht.HouseholdType = ib.HouseholdType
+          )
+          -- Same pre-aggregation as "Current Inventory by Project Type": grouped
+          -- to the exact grain of the pivot's own rows (project_type_label,
+          -- project_name), so the weighted rate (SUM(rate * available)/SUM(available)
+          -- = SUM(occupied)/SUM(available), combining a project's household-type
+          -- inventory rows, and multiple projects sharing a cell) comes back as a
+          -- handful of rows via GROUP BY instead of one row per available bed-night
+          -- this month -- the prior per-bed-night expansion (up to ~228K rows) was
+          -- too large a payload for the dashboard to load reliably.
+          SELECT
+            ri.project_type_label,
+            ri.project_name,
+            SUM(ri.bed_inventory) AS bed_inventory,
+            SUM(ri.unit_inventory) AS unit_inventory,
+            SAFE_DIVIDE(SUM(ri.utilization_rate * ri.available_bed_nights), SUM(ri.available_bed_nights)) AS utilization_rate
+          FROM rated_inventory ri
+          GROUP BY ri.project_type_label, ri.project_name
+        pivot:
+          rows:
+            - field: project_type_label
+            - field: project_name
+          values:
+            - field: bed_inventory
+              summarize: sum
+              label: Beds
+            - field: unit_inventory
+              summarize: sum
+              label: Units
+            - field: utilization_rate
+              summarize: average
+              label: Average Utilization
+              format:
+                - backgroundColor: [red, amber, green]
+                  range: [0, 0.5, 1]
+                  unit: absolute
+        columns:
+          - name: Average Utilization
+            number: ".0%"
+        col: 12
