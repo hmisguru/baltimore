@@ -276,7 +276,14 @@ function renderWidget(bridge, widget, filterValues) {
   else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
 
   const isNote = widget.type === "text";
-  return html`<section class="bridge-card${isNote ? " bridge-note" : ""}${widget.type === "metric" ? " bridge-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
+  // DAC declares this widget col: 12, right for its old stacked-bar
+  // rendering, but the round treemap caps itself well under a typical
+  // full-row width (see renderTreemap) -- a 12-wide card just surrounds it
+  // with a wide band of empty card background on both sides. Narrowing the
+  // card itself to match is a tighter fix than trying to make a circle-
+  // packing layout stretch to fill a width it can't use.
+  const span = widget.chart === "treemap" ? 6 : (widget.col ?? 12);
+  return html`<section class="bridge-card${isNote ? " bridge-note" : ""}${widget.type === "metric" ? " bridge-card-metric" : ""}" style="--span:${span}" data-widget=${widget.id}>
     ${isNote ? null : html`<h3 class="bridge-card-title">${widget.name}</h3>`}
     ${body}
   </section>`;
