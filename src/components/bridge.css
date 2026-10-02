@@ -53,6 +53,13 @@
 .bridge-legend-tile p { margin: 0; font-size: 13px; color: var(--bridge-muted); }
 .bridge-legend-stat { font-size: 22px; font-weight: 700; line-height: 1.1; color: #161616; margin: 2px 0 6px !important; font-variant-numeric: tabular-nums; }
 .bridge-legend-stat span { font-size: 13px; font-weight: 600; color: var(--bridge-muted); }
+/* Positive Outcomes' "Households Exiting to Permanent Housing" tile: reuses
+   STATUS_COLORS (#0a6e0a green / #b3261e red, white text ~6.5:1 contrast --
+   same pair already shipped on .bridge-pill table cells) as a sentence badge
+   instead of a single-word pill, since the tile states the full comparison
+   in plain language rather than a table column. display:inline-block keeps
+   it a rounded badge even as the sentence wraps to two lines. */
+.bridge-exits-pill { display: inline-block; margin: 10px 0 0; padding: 5px 14px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 600; line-height: 1.4; }
 @media (max-width: 760px) {
   .bridge-row { grid-template-columns: 1fr; }
   .bridge-card { grid-column: 1 / -1; }
