@@ -1003,7 +1003,7 @@ rows:
             name: households
             number: number
         id: permanent_destination_breakdown
-        name: Top Permanent Destination This Quarter
+        name: Top Permanent Destinations This Quarter
         sql: |
           WITH totals AS (
             SELECT
@@ -1013,12 +1013,18 @@ rows:
             WHERE category = 'Destination'
               AND LOWER(`set`) LIKE '%permanent%'
               AND date = (SELECT MAX(date) FROM `baldashboard.performance_metrics`)
+              AND project_type IN ('AO', 'AC', 'CO')
+              AND ('{{ filters.household_type }}' = 'All Household Types' OR project_type = CASE '{{ filters.household_type }}'
+                WHEN 'Adults Only' THEN 'AO'
+                WHEN 'Families with Children' THEN 'AC'
+                WHEN 'Unaccompanied Minors' THEN 'CO'
+              END)
             GROUP BY `set`
           )
           SELECT destination, households
           FROM totals
-          QUALIFY households = MAX(households) OVER ()
-          ORDER BY destination
+          QUALIFY ROW_NUMBER() OVER (ORDER BY households DESC, destination) <= 3
+          ORDER BY households DESC, destination
         type: table
   - height: 110px
     tab: Positive Outcomes
