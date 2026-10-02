@@ -60,6 +60,12 @@
    in plain language rather than a table column. display:inline-block keeps
    it a rounded badge even as the sentence wraps to two lines. */
 .bridge-exits-pill { display: inline-block; margin: 10px 0 0; padding: 5px 14px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 600; line-height: 1.4; }
+/* Nested inside a glossary tile (the "Returned" tile's trend pill), the
+   pill is still a <p>, so .bridge-legend-tile p's own margin/color (a
+   higher-specificity rule, class+tag vs. this file's single class) would
+   otherwise flatten its spacing and overwrite its white text with the
+   tile's muted ink. Restated here at matching (two-class) specificity. */
+.bridge-legend-tile .bridge-exits-pill { margin: 8px 0; color: #fff; }
 @media (max-width: 760px) {
   .bridge-row { grid-template-columns: 1fr; }
   .bridge-card { grid-column: 1 / -1; }

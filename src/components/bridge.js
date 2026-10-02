@@ -23,6 +23,23 @@ export function widgetRows(bridge, widget, filterValues) {
   return rows.map((r) => Object.fromEntries(columns.map((c, i) => [c, r[i]])));
 }
 
+// Finds a widget by name across every tab, not just the one currently
+// rendering -- used when a tile needs another tab's widget data, e.g. the
+// System Engagement glossary's "Returned" tile pulling its trend pill from
+// "Returns After Placement — Trend", which still lives under Positive
+// Outcomes in bridge/balbridge.yml (moving it there is a render-time-only
+// choice, like every other cross-row reshuffle in this file; the YAML stays
+// untouched).
+function findWidget(bridge, name) {
+  for (const tab of bridge.tabs) {
+    for (const row of tab.rows) {
+      const w = row.find((x) => x.name === name);
+      if (w) return w;
+    }
+  }
+  return null;
+}
+
 function numberFormat(spec) {
   if (!spec || spec === "number") return d3format(",~f");
   try {
@@ -245,29 +262,53 @@ function renderTable(widget, rows) {
   </table></div>`;
 }
 
-// Plain-language merge of a bare current-quarter count metric widget with a
-// "... — Trend" widget (a one-row table of pct_of_average/comparison_label/
-// rolling_avg_4q) into a single tile: the big number, plus one sentence
-// instead of a separate badge column a reader has to cross-reference against
-// "4-Quarter Average" and "Comparison" columns themselves. The arrow encodes
-// direction (above/below average) and the color encodes whether that's good
-// or bad for this measure -- pulled from the trend widget's own
+// One sentence built from a "... — Trend" widget's own one-row table
+// (pct_of_average/comparison_label/rolling_avg_4q), e.g. "▼ 43.5% below the
+// 675.5 average based on the previous 12 months" -- instead of a separate
+// badge column a reader has to cross-reference against "4-Quarter Average"
+// and "Comparison" columns themselves. pct_of_average is current/average as
+// a ratio (e.g. 1.0010 when current is barely above average); the pill's
+// number is the percent CHANGE from average (pct_of_average - 1, e.g.
+// 0.1%), not that ratio itself -- using the ratio directly (confirmed
+// live: Established read "100.1% above average" for a ~2-household gap)
+// overstates every gap by roughly its own size, worst right where the real
+// story is "basically flat." Within +/-2% of average (NEGLIGIBLE_CHANGE),
+// the pill drops the number entirely for a plain "about the same as"
+// rather than asking the reader to parse a decimal percent as negligible
+// themselves, in a neutral ink pill (bridge-muted, not red or green, since
+// a flat reading isn't a judgment call either way). Beyond that threshold,
+// the arrow and color still encode direction and whether that's good or
+// bad for this measure -- color pulled from the trend widget's own
 // pct_of_average column `format` rule via styleFor(), the same lookup
 // renderTable() uses, so a widget like "Returns After Placement — Trend"
-// (where *below* average is green, the opposite of the exits widget) colors
-// correctly without a widget-specific special case here.
-function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
-  if (!metricRows.length || !trendRows.length) return empty();
-  const value = numberFormat(metricWidget.value.format)(metricRows[0][metricWidget.value.field]);
+// (where *below* average is green) colors correctly without a
+// widget-specific special case here. Shared by renderExitsSummary() below
+// and the System Engagement glossary tiles.
+const NEGLIGIBLE_CHANGE = 0.02;
+function trendPill(trendWidget, trendRows) {
+  if (!trendRows?.length) return null;
   const {pct_of_average, rolling_avg_4q} = trendRows[0];
-  const above = pct_of_average >= 1;
-  const pct = d3format(".1%")(pct_of_average);
+  if (pct_of_average == null) return null;
   const avg = numberFormat("number")(rolling_avg_4q);
+  const change = pct_of_average - 1;
+  if (Math.abs(change) < NEGLIGIBLE_CHANGE) {
+    return html`<p class="bridge-exits-pill" style="background:var(--bridge-muted)">≈ About the same as the ${avg} average based on the previous 12 months</p>`;
+  }
+  const above = change > 0;
+  const pct = d3format(".1%")(Math.abs(change));
   const pctColumn = trendWidget.columns?.find((c) => c.name === "pct_of_average");
   const rule = styleFor(pctColumn?.format, pct_of_average);
   const bg = STATUS_COLORS[rule?.backgroundColor] ?? rule?.backgroundColor ?? STATUS_COLORS[above ? "green" : "red"];
-  return html`<div class="bridge-metric">${value}</div>
-    <p class="bridge-exits-pill" style="background:${bg}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average based on the previous 12 months</p>`;
+  return html`<p class="bridge-exits-pill" style="background:${bg}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average based on the previous 12 months</p>`;
+}
+
+// Plain-language merge of a bare current-quarter count metric widget with
+// its "... — Trend" sibling into a single tile: the big number, plus
+// trendPill()'s sentence below it.
+function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
+  if (!metricRows.length || !trendRows.length) return empty();
+  const value = numberFormat(metricWidget.value.format)(metricRows[0][metricWidget.value.field]);
+  return html`<div class="bridge-metric">${value}</div>${trendPill(trendWidget, trendRows)}`;
 }
 
 // Width override for a widget whose YAML `col` reads too wide on this site.
@@ -314,26 +355,47 @@ function renderWidget(bridge, widget, filterValues) {
 // `CASE ... AS engagement_state` in that YAML) exactly, including
 // "Recurring" per explicit choice, so there's no mismatch between this
 // glossary and what the chart below it actually says.
+// Every state's trendWidget points at a "... — Trend" table (same shape as
+// Positive Outcomes' Exits/Returns trend widgets: current_value, 4-quarter
+// rolling average, pct_of_average, comparison_label) that exists solely to
+// feed that tile's pill -- see PILL_ONLY_WIDGET_NAMES below, which keeps
+// all four of these off their nominal tab as a visible card of their own.
+// Established/New/Recurring's trend widgets live directly under "tab:
+// System Engagement" in the YAML; Returned's still lives under Positive
+// Outcomes (it was moved here by request after the fact, rather than
+// authored in place), reached the same way via findWidget()'s cross-tab
+// search either way. For all four, per explicit instruction, *below*
+// average is the positive direction (green) -- fewer households stuck,
+// newly homeless, recurring, or returning is the improvement -- the
+// opposite polarity from the Positive Outcomes exits tile, where *above*
+// average (more exits to permanent housing) is good.
 const ENGAGEMENT_STATES = [
   {
     label: "Established",
     accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed",
-    definition: "Continuously homeless since a prior report period — doesn't fit the other three states."
+    definition: "Continuously homeless since a prior report period — doesn't fit the other three states.",
+    trendWidget: "Established — Trend"
   },
   {
     label: "New",
     accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6",
-    definition: "First-time entry into the system, with no enrollment in the two years prior."
+    definition: "First-time entry into the system, with no enrollment in the two years prior.",
+    trendWidget: "New — Trend"
   },
   {
     label: "Recurring",
     accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9",
-    definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit."
+    definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit.",
+    trendWidget: "Recurring — Trend"
   },
   {
     label: "Returned",
     accent: "#eda100", bg: "#f9f5eb", border: "#eddbb6",
-    definition: "Re-entered the system 15–730 days after a permanent-housing exit."
+    definition: "Re-entered the system 15–730 days after a permanent-housing exit.",
+    // Folds in "Returns After Permanent Placement" + its trend table, moved
+    // here from Positive Outcomes -- the household count above is already
+    // this same measure, so only the trend pill was new.
+    trendWidget: "Returns After Placement — Trend"
   }
 ];
 
@@ -347,15 +409,20 @@ function engagementTotals(rows) {
   return (label) => (totals.has(label) ? fmt(totals.get(label)) : null);
 }
 
-function renderEngagementLegend(rows) {
+function renderEngagementLegend(bridge, rows, filterValues) {
   const totalFor = engagementTotals(rows);
-  return html`<div class="bridge-legend" aria-label="Engagement state definitions">${ENGAGEMENT_STATES.map((s) => html`
+  return html`<div class="bridge-legend" aria-label="Engagement state definitions">${ENGAGEMENT_STATES.map((s) => {
+    const trendWidget = s.trendWidget ? findWidget(bridge, s.trendWidget) : null;
+    const pill = trendWidget ? trendPill(trendWidget, widgetRows(bridge, trendWidget, filterValues)) : null;
+    return html`
     <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent}">
       <p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>
       ${totalFor(s.label) != null ? html`<p class="bridge-legend-stat">${totalFor(s.label)} <span>Households</span></p>` : null}
+      ${pill}
       <p>${s.definition}</p>
     </div>
-  `)}</div>`;
+  `;
+  })}</div>`;
 }
 
 // balbridge.yml puts "Current Quarter" in its own full-width row at the top
@@ -397,68 +464,66 @@ function mergeQuarterTopRow(rows) {
   return merged;
 }
 
-// Positive Outcomes pairs a bare current-quarter count metric with a
-// "... — Trend" one-row table, for each of these two measures.
-// renderRowWidgets() below replaces every such pair found in a row with one
-// combined card (renderExitsSummary), leaving any other widget in the row
-// untouched and in its original position. When a row ends up holding
-// multiple combined cards and nothing else (restructurePositiveOutcomesRows
-// below builds exactly one such row), they split the row evenly instead of
-// each keeping its two source widgets' summed width, which would overflow
-// the 12-column grid (7+7 > 12).
-const SUMMARY_TILE_PAIRS = [
-  ["Households Exiting to Permanent Housing", "Exits to Permanent Housing — Trend"],
-  ["Returns After Permanent Placement", "Returns After Placement — Trend"]
-];
-
+// Positive Outcomes pairs "Households Exiting to Permanent Housing" (a bare
+// current-quarter count) with "Exits to Permanent Housing — Trend" (a
+// one-row table) in the same YAML row, alongside the destination breakdown
+// table. Replaces that pair with one combined card (renderExitsSummary),
+// pinned to the same 6/12 span as "Top Permanent Destinations This Quarter"
+// below it (restructurePositiveOutcomesRows), leaving the destination table
+// untouched in its own position.
 function renderRowWidgets(bridge, row, filterValues) {
-  let remaining = row;
-  const pairs = [];
-  for (const [metricName, trendName] of SUMMARY_TILE_PAIRS) {
-    const metricWidget = remaining.find((w) => w.name === metricName);
-    const trendWidget = remaining.find((w) => w.name === trendName);
-    if (!metricWidget || !trendWidget) continue;
-    pairs.push({metricWidget, trendWidget});
-    remaining = remaining.filter((w) => w !== metricWidget && w !== trendWidget);
-  }
-  if (!pairs.length) return row.map((w) => renderWidget(bridge, w, filterValues));
-  const evenSplit = pairs.length > 1 && !remaining.length;
-  const cards = pairs.map(({metricWidget, trendWidget}) => {
-    const span = evenSplit ? Math.floor(12 / pairs.length) : (metricWidget.col ?? 0) + (trendWidget.col ?? 0);
-    return html`<section class="bridge-card bridge-card-metric" style="--span:${span}" data-widget=${metricWidget.id}>
-      <h3 class="bridge-card-title">${metricWidget.name}</h3>
-      ${renderExitsSummary(metricWidget, trendWidget, widgetRows(bridge, metricWidget, filterValues), widgetRows(bridge, trendWidget, filterValues))}
-    </section>`;
-  });
-  return [...cards, ...remaining.map((w) => renderWidget(bridge, w, filterValues))];
+  const metricWidget = row.find((w) => w.name === "Households Exiting to Permanent Housing");
+  const trendWidget = row.find((w) => w.name === "Exits to Permanent Housing — Trend");
+  if (!metricWidget || !trendWidget) return row.map((w) => renderWidget(bridge, w, filterValues));
+  const combined = html`<section class="bridge-card bridge-card-metric" style="--span:6" data-widget=${metricWidget.id}>
+    <h3 class="bridge-card-title">${metricWidget.name}</h3>
+    ${renderExitsSummary(metricWidget, trendWidget, widgetRows(bridge, metricWidget, filterValues), widgetRows(bridge, trendWidget, filterValues))}
+  </section>`;
+  return [combined, ...row.filter((w) => w !== metricWidget && w !== trendWidget).map((w) => renderWidget(bridge, w, filterValues))];
+}
+
+// Every ENGAGEMENT_STATES trendWidget exists solely to feed a glossary
+// tile's pill (via findWidget() + trendPill() in renderEngagementLegend)
+// and should never also show up as its own visible card wherever it
+// happens to sit in the YAML -- Established/New/Recurring's trend widgets
+// are authored directly under "tab: System Engagement" (so without this,
+// they'd render as three orphan one-row tables above the glossary), and
+// Returned's still lives under Positive Outcomes.
+const PILL_ONLY_WIDGET_NAMES = new Set(ENGAGEMENT_STATES.filter((s) => s.trendWidget).map((s) => s.trendWidget));
+
+function dropPillOnlyWidgets(rows) {
+  return rows.map((row) => row.filter((w) => !PILL_ONLY_WIDGET_NAMES.has(w.name))).filter((row) => row.length);
 }
 
 // balbridge.yml puts the exits-summary pair + the destination breakdown
-// table in one row, and the returns-summary pair alone in the row right
-// after. Regrouped here into a row holding just the two summary pairs
-// (which renderRowWidgets splits evenly, 6/6) and a second row holding just
-// the destination table (SPAN_OVERRIDES widens it to 12/12 there).
+// table in one row, and "Returns After Permanent Placement" (now redundant
+// with the "Returned" glossary tile's own household count, which is this
+// same measure) alone in the row right after. Regrouped here: the exits
+// row is split into the summary pair alone (6/12, renderRowWidgets above)
+// and the destination table alone beneath it (SPAN_OVERRIDES widens it to
+// 6/12 to match); the orphaned returns-metric row is dropped entirely. Its
+// trend widget is handled generically above (dropPillOnlyWidgets), since
+// unlike this metric it's still in use, just on a different tab.
 function restructurePositiveOutcomesRows(rows) {
-  const exitsRowIndex = rows.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
-  const returnsRowIndex = rows.findIndex((row) => row.some((w) => w.name === "Returns After Permanent Placement"));
-  if (exitsRowIndex === -1 || returnsRowIndex === -1) return rows;
-  const exitsRow = rows[exitsRowIndex];
-  const returnsRow = rows[returnsRowIndex];
+  const withoutReturnsMetric = rows.map((row) => row.filter((w) => w.name !== "Returns After Permanent Placement")).filter((row) => row.length);
+  const exitsRowIndex = withoutReturnsMetric.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
+  if (exitsRowIndex === -1) return withoutReturnsMetric;
+  const exitsRow = withoutReturnsMetric[exitsRowIndex];
   const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destinations This Quarter");
-  const summaryRow = [...exitsRow.filter((w) => w !== destinationWidget), ...returnsRow];
-  const out = rows.filter((_, i) => i !== exitsRowIndex && i !== returnsRowIndex);
-  out.splice(Math.min(exitsRowIndex, returnsRowIndex), 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
+  const summaryRow = exitsRow.filter((w) => w !== destinationWidget);
+  const out = withoutReturnsMetric.filter((_, i) => i !== exitsRowIndex);
+  out.splice(exitsRowIndex, 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
   return out;
 }
 
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  const rows = mergeQuarterTopRow(restructurePositiveOutcomesRows(tab.rows));
+  const rows = mergeQuarterTopRow(restructurePositiveOutcomesRows(dropPillOnlyWidgets(tab.rows)));
   return html`<div class="bridge-tab">${rows.map((row) => {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`
-    ${treemapWidget ? renderEngagementLegend(widgetRows(bridge, treemapWidget, filterValues)) : null}
+    ${treemapWidget ? renderEngagementLegend(bridge, widgetRows(bridge, treemapWidget, filterValues), filterValues) : null}
     <div class="bridge-row">${renderRowWidgets(bridge, row, filterValues)}</div>
   `;
   })}</div>`;
