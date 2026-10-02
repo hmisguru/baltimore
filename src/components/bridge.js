@@ -270,23 +270,19 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
     <p class="bridge-exits-pill" style="background:${bg}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average based on the previous 12 months</p>`;
 }
 
-// Width overrides for widgets whose YAML `col` (full-width on every tab) reads
-// too wide on this site: "Current Quarter" is a one-line date range, not
-// worth a full row, so it's pinned to a 3/12 span (~320px of the page's
-// 1280px max width, matching the dashboard's existing metric-tile width
-// convention). On the three tabs where it's immediately followed by the
-// "Project Type Filter Note" text widget, renderTab() below merges that
-// note into the same row, so it gets the complementary 9/12 span to fill
-// the rest of the row beside it. "Top Permanent Destinations This Quarter"
-// keeps its YAML col:5 only because it used to share a row with the exits
-// summary tile; restructurePositiveOutcomesRows() below moves it to its own
-// row beneath the two summary tiles. It's pinned to 6/12 (rather than the
-// full 12/12) to match the width of "Households Exiting to Permanent
-// Housing" directly above it -- grid auto-placement puts it at column 1
-// same as that tile, so it lines up on the left edge too, not just width.
+// Width override for a widget whose YAML `col` reads too wide on this site.
+// "Current Quarter" and "Project Type Filter Note" aren't here even though
+// they're also resized -- their width depends on which tab they're on (see
+// mergeQuarterTopRow below), so they're set directly via a `col` override on
+// the merged row's widgets instead of this fixed, name-keyed table.
+// "Top Permanent Destinations This Quarter" keeps its YAML col:5 only
+// because it used to share a row with the exits summary tile;
+// restructurePositiveOutcomesRows() below moves it to its own row beneath
+// the two summary tiles. It's pinned to 6/12 (rather than the full 12/12)
+// to match the width of "Households Exiting to Permanent Housing" directly
+// above it -- grid auto-placement puts it at column 1 same as that tile, so
+// it lines up on the left edge too, not just width.
 const SPAN_OVERRIDES = {
-  "Current Quarter": 3,
-  "Project Type Filter Note": 9,
   "Top Permanent Destinations This Quarter": 6
 };
 
@@ -362,21 +358,40 @@ function renderEngagementLegend(rows) {
   `)}</div>`;
 }
 
-// balbridge.yml puts "Current Quarter" and the following tab's "Project Type
-// Filter Note" in their own full-width rows. Merging them into one row here
-// (rather than in bridge.json.py, which just mirrors the YAML's row shape)
-// is what lets the note sit beside Current Quarter's new 3/12 span instead
-// of leaving the rest of that row empty -- see SPAN_OVERRIDES above.
-function mergeQuarterNoteRows(rows) {
+// balbridge.yml puts "Current Quarter" in its own full-width row at the top
+// of every tab, with a different row right after depending on the tab:
+// three tabs (System Engagement, Length of Time, Positive Outcomes) follow
+// it with the "Project Type Filter Note" text widget; the other two
+// (Overview, Demographics) follow it with "People Served in Interim
+// Housing" + "Households Served in Interim Housing". Both cases are merged
+// into Current Quarter's row here (rather than in bridge.json.py, which
+// just mirrors the YAML's row shape), with each widget's width set via a
+// `col` override on a shallow copy. Current Quarter itself is a fixed 4/12
+// on every tab (per explicit request, so it reads the same width wherever
+// it appears); the note takes the complementary 8/12 beside it, and the two
+// served-counts tiles split the other 8/12 evenly with it (4/4/4). This
+// replaces the old name-keyed SPAN_OVERRIDES entries for "Current Quarter"
+// and "Project Type Filter Note" with the widths set here.
+const CURRENT_QUARTER_SPAN = 4;
+function mergeQuarterTopRow(rows) {
+  const withCol = (w, col) => ({...w, col});
   const merged = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const next = rows[i + 1];
-    if (row.length === 1 && row[0].name === "Current Quarter" && next?.length === 1 && next[0].name === "Project Type Filter Note") {
-      merged.push([row[0], next[0]]);
+    const nextNames = next?.map((w) => w.name) ?? [];
+    if (row.length !== 1 || row[0].name !== "Current Quarter") {
+      merged.push(row);
+      continue;
+    }
+    if (next?.length === 1 && nextNames[0] === "Project Type Filter Note") {
+      merged.push([withCol(row[0], CURRENT_QUARTER_SPAN), withCol(next[0], 12 - CURRENT_QUARTER_SPAN)]);
+      i++;
+    } else if (next?.length === 2 && nextNames.includes("People Served in Interim Housing") && nextNames.includes("Households Served in Interim Housing")) {
+      merged.push([row[0], ...next].map((w) => withCol(w, CURRENT_QUARTER_SPAN)));
       i++;
     } else {
-      merged.push(row);
+      merged.push([withCol(row[0], CURRENT_QUARTER_SPAN)]);
     }
   }
   return merged;
@@ -439,7 +454,7 @@ function restructurePositiveOutcomesRows(rows) {
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  const rows = mergeQuarterNoteRows(restructurePositiveOutcomesRows(tab.rows));
+  const rows = mergeQuarterTopRow(restructurePositiveOutcomesRows(tab.rows));
   return html`<div class="bridge-tab">${rows.map((row) => {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`
