@@ -295,10 +295,22 @@ const ENGAGEMENT_STATES = [
   }
 ];
 
-function renderEngagementLegend() {
+// households-per-state totals, keyed by ENGAGEMENT_STATES label, from the
+// treemap widget's own rows -- so a tile's stat matches whatever the chart
+// below it is currently showing, household-type filter included.
+function engagementTotals(rows) {
+  const fmt = numberFormat(",.0f");
+  const totals = new Map();
+  for (const r of rows) totals.set(r.engagement_state, (totals.get(r.engagement_state) ?? 0) + (r.households ?? 0));
+  return (label) => (totals.has(label) ? fmt(totals.get(label)) : null);
+}
+
+function renderEngagementLegend(rows) {
+  const totalFor = engagementTotals(rows);
   return html`<div class="bridge-legend" aria-label="Engagement state definitions">${ENGAGEMENT_STATES.map((s) => html`
     <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent}">
       <p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>
+      ${totalFor(s.label) != null ? html`<p class="bridge-legend-stat">${totalFor(s.label)} <span>Households</span></p>` : null}
       <p>${s.definition}</p>
     </div>
   `)}</div>`;
@@ -307,10 +319,13 @@ function renderEngagementLegend() {
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  return html`<div class="bridge-tab">${tab.rows.map((row) => html`
-    ${row.some((w) => w.name === "System engagement by household type") ? renderEngagementLegend() : null}
+  return html`<div class="bridge-tab">${tab.rows.map((row) => {
+    const treemapWidget = row.find((w) => w.name === "System engagement by household type");
+    return html`
+    ${treemapWidget ? renderEngagementLegend(widgetRows(bridge, treemapWidget, filterValues)) : null}
     <div class="bridge-row">${row.map((w) => renderWidget(bridge, w, filterValues))}</div>
-  `)}</div>`;
+  `;
+  })}</div>`;
 }
 
 // The dashboard's untabbed text notes, shown above the filters: each note's

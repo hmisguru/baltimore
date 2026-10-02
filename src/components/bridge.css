@@ -51,6 +51,8 @@
 .bridge-legend-title { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--bridge-deep); }
 .bridge-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tile-accent); flex: none; }
 .bridge-legend-tile p { margin: 0; font-size: 13px; color: var(--bridge-muted); }
+.bridge-legend-stat { font-size: 22px; font-weight: 700; line-height: 1.1; color: #161616; margin: 2px 0 6px !important; font-variant-numeric: tabular-nums; }
+.bridge-legend-stat span { font-size: 13px; font-weight: 600; color: var(--bridge-muted); }
 @media (max-width: 760px) {
   .bridge-row { grid-template-columns: 1fr; }
   .bridge-card { grid-column: 1 / -1; }
