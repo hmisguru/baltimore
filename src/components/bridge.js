@@ -263,23 +263,39 @@ function renderTable(widget, rows) {
 }
 
 // One sentence built from a "... — Trend" widget's own one-row table
-// (pct_of_average/comparison_label/rolling_avg_4q), e.g. "▼ 84.9% below the
-// 227.25 average based on the previous 12 months" -- instead of a separate
+// (pct_of_average/comparison_label/rolling_avg_4q), e.g. "▼ 43.5% below the
+// 675.5 average based on the previous 12 months" -- instead of a separate
 // badge column a reader has to cross-reference against "4-Quarter Average"
-// and "Comparison" columns themselves. The arrow encodes direction
-// (above/below average) and the color encodes whether that's good or bad
-// for this measure -- pulled from the trend widget's own pct_of_average
-// column `format` rule via styleFor(), the same lookup renderTable() uses,
-// so a widget like "Returns After Placement — Trend" (where *below* average
-// is green, the opposite of the exits widget) colors correctly without a
+// and "Comparison" columns themselves. pct_of_average is current/average as
+// a ratio (e.g. 1.0010 when current is barely above average); the pill's
+// number is the percent CHANGE from average (pct_of_average - 1, e.g.
+// 0.1%), not that ratio itself -- using the ratio directly (confirmed
+// live: Established read "100.1% above average" for a ~2-household gap)
+// overstates every gap by roughly its own size, worst right where the real
+// story is "basically flat." Within +/-2% of average (NEGLIGIBLE_CHANGE),
+// the pill drops the number entirely for a plain "about the same as"
+// rather than asking the reader to parse a decimal percent as negligible
+// themselves, in a neutral ink pill (bridge-muted, not red or green, since
+// a flat reading isn't a judgment call either way). Beyond that threshold,
+// the arrow and color still encode direction and whether that's good or
+// bad for this measure -- color pulled from the trend widget's own
+// pct_of_average column `format` rule via styleFor(), the same lookup
+// renderTable() uses, so a widget like "Returns After Placement — Trend"
+// (where *below* average is green) colors correctly without a
 // widget-specific special case here. Shared by renderExitsSummary() below
-// and the System Engagement glossary's "Returned" tile.
+// and the System Engagement glossary tiles.
+const NEGLIGIBLE_CHANGE = 0.02;
 function trendPill(trendWidget, trendRows) {
   if (!trendRows?.length) return null;
   const {pct_of_average, rolling_avg_4q} = trendRows[0];
-  const above = pct_of_average >= 1;
-  const pct = d3format(".1%")(pct_of_average);
+  if (pct_of_average == null) return null;
   const avg = numberFormat("number")(rolling_avg_4q);
+  const change = pct_of_average - 1;
+  if (Math.abs(change) < NEGLIGIBLE_CHANGE) {
+    return html`<p class="bridge-exits-pill" style="background:var(--bridge-muted)">≈ About the same as the ${avg} average based on the previous 12 months</p>`;
+  }
+  const above = change > 0;
+  const pct = d3format(".1%")(Math.abs(change));
   const pctColumn = trendWidget.columns?.find((c) => c.name === "pct_of_average");
   const rule = styleFor(pctColumn?.format, pct_of_average);
   const bg = STATUS_COLORS[rule?.backgroundColor] ?? rule?.backgroundColor ?? STATUS_COLORS[above ? "green" : "red"];
