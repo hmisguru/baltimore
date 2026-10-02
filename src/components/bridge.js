@@ -277,7 +277,7 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 // convention). On the three tabs where it's immediately followed by the
 // "Project Type Filter Note" text widget, renderTab() below merges that
 // note into the same row, so it gets the complementary 9/12 span to fill
-// the rest of the row beside it. "Top Permanent Destination This Quarter"
+// the rest of the row beside it. "Top Permanent Destinations This Quarter"
 // keeps its YAML col:5 only because it used to share a row with the exits
 // summary tile; restructurePositiveOutcomesRows() below moves it to its own
 // row beneath the two summary tiles, where it reads better at the full
@@ -285,7 +285,7 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 const SPAN_OVERRIDES = {
   "Current Quarter": 3,
   "Project Type Filter Note": 9,
-  "Top Permanent Destination This Quarter": 12
+  "Top Permanent Destinations This Quarter": 12
 };
 
 function renderWidget(bridge, widget, filterValues) {
@@ -427,7 +427,7 @@ function restructurePositiveOutcomesRows(rows) {
   if (exitsRowIndex === -1 || returnsRowIndex === -1) return rows;
   const exitsRow = rows[exitsRowIndex];
   const returnsRow = rows[returnsRowIndex];
-  const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destination This Quarter");
+  const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destinations This Quarter");
   const summaryRow = [...exitsRow.filter((w) => w !== destinationWidget), ...returnsRow];
   const out = rows.filter((_, i) => i !== exitsRowIndex && i !== returnsRowIndex);
   out.splice(Math.min(exitsRowIndex, returnsRowIndex), 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
