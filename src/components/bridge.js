@@ -412,10 +412,18 @@ function renderEngagementLegend(bridge, rows, filterValues) {
   return html`<div class="bridge-legend" aria-label="Engagement state definitions">${ENGAGEMENT_STATES.map((s) => {
     const trendWidget = s.trendWidget ? findWidget(bridge, s.trendWidget) : null;
     const pill = trendWidget ? trendPill(trendWidget, widgetRows(bridge, trendWidget, filterValues)) : null;
+    const total = totalFor(s.label);
+    // One flowing stat line ("1,241 Established Households") instead of a
+    // separate state-name heading above the count, per explicit request.
+    // When there's no data for this state under the current filter, the
+    // tile still needs its own label, so it falls back to the old
+    // dot+name heading rather than showing nothing.
+    const heading = total != null
+      ? html`<p class="bridge-legend-stat">${total} <span>${s.label} Households</span></p>`
+      : html`<p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>`;
     return html`
     <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent}">
-      <p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>
-      ${totalFor(s.label) != null ? html`<p class="bridge-legend-stat">${totalFor(s.label)} <span>Households</span></p>` : null}
+      ${heading}
       ${pill}
       <p>${s.definition}</p>
     </div>
