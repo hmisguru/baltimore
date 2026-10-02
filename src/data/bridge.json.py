@@ -66,6 +66,17 @@ client = bigquery.Client(project=BQ_PROJECT_ID, credentials=credentials)
 # Widget keys passed through to the page as display config (never SQL).
 DISPLAY_KEYS = ["chart", "x", "y", "color", "stacked", "value", "label", "columns", "slices", "content"]
 
+# Widgets hidden from this page (per explicit request), matched by their DAC
+# `name` rather than position: this file is a periodic verbatim copy of
+# balbridge.yml from baltimore-dac, and the auto-generated r<row>-w<widget>
+# ids below shift whenever anything upstream is added, removed, or reordered,
+# but a widget's own name stays stable across a refresh. Skipped entirely,
+# not just hidden visually -- no layout entry and no SQL template is built
+# for it, so no query runs and no empty widget card appears either.
+HIDDEN_WIDGET_NAMES = {
+    "Household system-engagement mix over time",
+}
+
 
 def json_value(v):
     if isinstance(v, Decimal):
@@ -129,6 +140,8 @@ def main():
     for ri, row in enumerate(dashboard["rows"]):
         widgets = []
         for wi, w in enumerate(row.get("widgets", [])):
+            if w.get("name") in HIDDEN_WIDGET_NAMES:
+                continue
             wid = f"r{ri}-w{wi}"
             widgets.append({
                 "id": wid,
@@ -140,6 +153,8 @@ def main():
             })
             if w.get("sql"):
                 sql_templates[wid] = env.from_string(w["sql"])
+        if not widgets:
+            continue
         if "tab" not in row:
             notes.extend(widgets)
         else:
