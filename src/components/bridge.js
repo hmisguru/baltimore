@@ -277,10 +277,15 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 // convention). On the three tabs where it's immediately followed by the
 // "Project Type Filter Note" text widget, renderTab() below merges that
 // note into the same row, so it gets the complementary 9/12 span to fill
-// the rest of the row beside it.
+// the rest of the row beside it. "Top Permanent Destination This Quarter"
+// keeps its YAML col:5 only because it used to share a row with the exits
+// summary tile; restructurePositiveOutcomesRows() below moves it to its own
+// row beneath the two summary tiles, where it reads better at the full
+// 12/12 width than left-aligned and narrow.
 const SPAN_OVERRIDES = {
   "Current Quarter": 3,
-  "Project Type Filter Note": 9
+  "Project Type Filter Note": 9,
+  "Top Permanent Destination This Quarter": 12
 };
 
 function renderWidget(bridge, widget, filterValues) {
@@ -376,34 +381,64 @@ function mergeQuarterNoteRows(rows) {
 }
 
 // Positive Outcomes pairs a bare current-quarter count metric with a
-// "... — Trend" one-row table in the same YAML row, for each of these two
-// measures. renderRowWidgets() below replaces each pair with one combined
-// card (renderExitsSummary) spanning both their widths, leaving any other
-// widget in the row (e.g. the destination breakdown table) untouched and in
-// its original position.
+// "... — Trend" one-row table, for each of these two measures.
+// renderRowWidgets() below replaces every such pair found in a row with one
+// combined card (renderExitsSummary), leaving any other widget in the row
+// untouched and in its original position. When a row ends up holding
+// multiple combined cards and nothing else (restructurePositiveOutcomesRows
+// below builds exactly one such row), they split the row evenly instead of
+// each keeping its two source widgets' summed width, which would overflow
+// the 12-column grid (7+7 > 12).
 const SUMMARY_TILE_PAIRS = [
   ["Households Exiting to Permanent Housing", "Exits to Permanent Housing — Trend"],
   ["Returns After Permanent Placement", "Returns After Placement — Trend"]
 ];
 
 function renderRowWidgets(bridge, row, filterValues) {
+  let remaining = row;
+  const pairs = [];
   for (const [metricName, trendName] of SUMMARY_TILE_PAIRS) {
-    const metricWidget = row.find((w) => w.name === metricName);
-    const trendWidget = row.find((w) => w.name === trendName);
+    const metricWidget = remaining.find((w) => w.name === metricName);
+    const trendWidget = remaining.find((w) => w.name === trendName);
     if (!metricWidget || !trendWidget) continue;
-    const combined = html`<section class="bridge-card bridge-card-metric" style="--span:${(metricWidget.col ?? 0) + (trendWidget.col ?? 0)}" data-widget=${metricWidget.id}>
+    pairs.push({metricWidget, trendWidget});
+    remaining = remaining.filter((w) => w !== metricWidget && w !== trendWidget);
+  }
+  if (!pairs.length) return row.map((w) => renderWidget(bridge, w, filterValues));
+  const evenSplit = pairs.length > 1 && !remaining.length;
+  const cards = pairs.map(({metricWidget, trendWidget}) => {
+    const span = evenSplit ? Math.floor(12 / pairs.length) : (metricWidget.col ?? 0) + (trendWidget.col ?? 0);
+    return html`<section class="bridge-card bridge-card-metric" style="--span:${span}" data-widget=${metricWidget.id}>
       <h3 class="bridge-card-title">${metricWidget.name}</h3>
       ${renderExitsSummary(metricWidget, trendWidget, widgetRows(bridge, metricWidget, filterValues), widgetRows(bridge, trendWidget, filterValues))}
     </section>`;
-    return [combined, ...row.filter((w) => w !== metricWidget && w !== trendWidget).map((w) => renderWidget(bridge, w, filterValues))];
-  }
-  return row.map((w) => renderWidget(bridge, w, filterValues));
+  });
+  return [...cards, ...remaining.map((w) => renderWidget(bridge, w, filterValues))];
+}
+
+// balbridge.yml puts the exits-summary pair + the destination breakdown
+// table in one row, and the returns-summary pair alone in the row right
+// after. Regrouped here into a row holding just the two summary pairs
+// (which renderRowWidgets splits evenly, 6/6) and a second row holding just
+// the destination table (SPAN_OVERRIDES widens it to 12/12 there).
+function restructurePositiveOutcomesRows(rows) {
+  const exitsRowIndex = rows.findIndex((row) => row.some((w) => w.name === "Households Exiting to Permanent Housing"));
+  const returnsRowIndex = rows.findIndex((row) => row.some((w) => w.name === "Returns After Permanent Placement"));
+  if (exitsRowIndex === -1 || returnsRowIndex === -1) return rows;
+  const exitsRow = rows[exitsRowIndex];
+  const returnsRow = rows[returnsRowIndex];
+  const destinationWidget = exitsRow.find((w) => w.name === "Top Permanent Destination This Quarter");
+  const summaryRow = [...exitsRow.filter((w) => w !== destinationWidget), ...returnsRow];
+  const out = rows.filter((_, i) => i !== exitsRowIndex && i !== returnsRowIndex);
+  out.splice(Math.min(exitsRowIndex, returnsRowIndex), 0, summaryRow, ...(destinationWidget ? [[destinationWidget]] : []));
+  return out;
 }
 
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  return html`<div class="bridge-tab">${mergeQuarterNoteRows(tab.rows).map((row) => {
+  const rows = mergeQuarterNoteRows(restructurePositiveOutcomesRows(tab.rows));
+  return html`<div class="bridge-tab">${rows.map((row) => {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`
     ${treemapWidget ? renderEngagementLegend(widgetRows(bridge, treemapWidget, filterValues)) : null}
