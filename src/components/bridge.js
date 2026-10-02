@@ -8,6 +8,7 @@ import {format as d3format} from "npm:d3-format";
 import {marked} from "npm:marked";
 import {html} from "npm:htl";
 import * as Inputs from "npm:@observablehq/inputs";
+import {hierarchy, treemap as d3treemap} from "npm:d3-hierarchy";
 import {resize} from "observablehq:stdlib";
 
 // Validated categorical palette (dataviz skill reference instance, light mode):
@@ -115,9 +116,18 @@ function renderPie(widget, rows) {
   }));
 }
 
-// Treemap of "Household type — Engagement state" segments becomes one stacked
-// bar per household type, split by engagement state.
+// True treemap: d3-hierarchy computes the rectangle layout (Plot has no
+// hierarchical-layout mark of its own), Plot.rect draws it so it stays
+// visually/interactively consistent with the rest of this file (color
+// scale, Plot.tip, resize()). Two-level hierarchy: widget.label split on
+// " — " gives the group (household type) and part (engagement state);
+// group nodes get a padded header strip for their own label, leaves are
+// colored individually from the widget's own `slices` map in the YAML
+// (keyed by the full "Group — Part" label) -- the only widget on this
+// dashboard that uses those per-segment colors, since the previous
+// stacked-bar rendering never read widget.slices at all.
 function renderTreemap(widget, rows) {
+  if (!rows.length) return empty();
   const value = widget.value.field;
   const fmt = numberFormat(widget.value.format);
   const data = rows.map((d) => {
@@ -125,18 +135,67 @@ function renderTreemap(widget, rows) {
     return {...d, _group: group, _part: part ?? group};
   });
   const groups = uniq(data, "_group");
-  return resize((width) => Plot.plot({
-    width,
-    height: 60 + groups.length * 48,
-    marginLeft: Math.min(200, width * 0.35),
-    x: {grid: true, label: widget.value.label ?? "Households", tickFormat: fmt},
-    y: {domain: groups, label: null, tickSize: 0},
-    color: colorScale(uniq(data, "_part")),
-    marks: [
-      Plot.barX(data, Plot.stackX({y: "_group", x: value, fill: "_part", inset: 1, rx: 2, tip: {format: {x: fmt}}})),
-      Plot.ruleX([0])
-    ]
-  }));
+  const segments = uniq(data, widget.label);
+  const slices = widget.slices ?? {};
+  const color = {
+    domain: segments,
+    range: segments.map((s, i) => slices[s]?.color ?? SERIES[i % SERIES.length]),
+    legend: true
+  };
+  const HEADER = 22;
+
+  const root = hierarchy({children: groups.map((g) => ({name: g, children: data.filter((d) => d._group === g)}))})
+    .sum((d) => d[value] ?? 0)
+    .sort((a, b) => b.value - a.value);
+
+  return resize((width) => {
+    const height = 70 + groups.length * 130;
+    d3treemap().size([width, height]).paddingOuter(4).paddingTop(HEADER).paddingInner(2)(root);
+    const leaves = root.leaves();
+    const big = leaves.filter((d) => d.x1 - d.x0 > 64 && d.y1 - d.y0 > 30);
+    return Plot.plot({
+      width,
+      height,
+      marginLeft: 0,
+      marginRight: 0,
+      marginTop: 0,
+      marginBottom: 0,
+      x: {domain: [0, width], axis: null},
+      y: {domain: [height, 0], axis: null},
+      color,
+      marks: [
+        // Group header bands + labels (household type)
+        Plot.rect(root.children, {x1: "x0", x2: "x1", y1: "y0", y2: (d) => Math.min(d.y0 + HEADER, d.y1), fill: "currentColor", fillOpacity: 0.06}),
+        Plot.text(root.children, {x: "x0", y: "y0", dx: 6, dy: 14, text: (d) => d.data.name, textAnchor: "start", fontWeight: 700, fontSize: 12, fill: "currentColor"}),
+        // Leaves (engagement state within each household type), colored by segment
+        Plot.rect(leaves, {
+          x1: "x0", x2: "x1", y1: "y0", y2: "y1",
+          fill: (d) => d.data[widget.label],
+          stroke: "var(--theme-background)",
+          strokeWidth: 1.5,
+          inset: 0.5,
+          rx: 2,
+          channels: {
+            "Household type": (d) => d.data._group,
+            "Engagement state": (d) => d.data._part,
+            [widget.value.label ?? "Households"]: (d) => d.data[value]
+          },
+          tip: {
+            format: {
+              x: false,
+              y: false,
+              fill: false,
+              "Household type": true,
+              "Engagement state": true,
+              [widget.value.label ?? "Households"]: fmt
+            }
+          }
+        }),
+        Plot.text(big, {x: (d) => (d.x0 + d.x1) / 2, y: (d) => (d.y0 + d.y1) / 2, dy: -6, text: (d) => d.data._part, fill: "white", fontWeight: 600, fontSize: 11}),
+        Plot.text(big, {x: (d) => (d.x0 + d.x1) / 2, y: (d) => (d.y0 + d.y1) / 2, dy: 10, text: (d) => fmt(d.data[value]), fill: "white", fontSize: 11})
+      ]
+    });
+  });
 }
 
 // DAC conditional formats: [{if: "greater_than_or_equal", value, ...style}, {...fallback}]
