@@ -149,10 +149,27 @@ function renderTreemap(widget, rows) {
 
   return resize((width) => {
     const height = Math.max(360, width * 0.55);
-    pack().size([width, height]).padding(6)(root);
+    // Extra padding between groups (depth 0, i.e. around the root's own
+    // children) than within a group (depth 1+), so a household type's
+    // header label always has clear space from its neighbors -- pack()
+    // doesn't guarantee each group its own row the way the treemap's
+    // squarify tiling did, so a small group (Unaccompanied Minors, here
+    // abbreviated "UA" for the same reason -- shorter header, less
+    // chance of overlap) can otherwise land tucked right against a much
+    // bigger neighbor with no room for its label above it.
+    pack().size([width, height]).padding((d) => (d.depth === 0 ? 90 : 6))(root);
     const groupNodes = root.children;
     const leaves = root.leaves();
-    const big = leaves.filter((d) => d.r > 22);
+    const shortGroupName = (name) => (name === "Unaccompanied Minors" ? "UA" : name);
+    // A flat radius cutoff isn't enough to keep a leaf's own label legible:
+    // "Established" is more than 3x wider than "New", so a circle sized to
+    // comfortably fit the latter can still render the former overflowing
+    // past its own edge -- white text past a colored circle's boundary is
+    // white-on-white against the page background, i.e. invisible, not
+    // merely clipped. Estimate each label's own pixel width instead of
+    // using one threshold for every segment.
+    const textWidth = (s, size = 11) => s.length * size * 0.56;
+    const big = leaves.filter((d) => d.r > 16 && d.r * 2 - 6 > textWidth(d.data._part));
     return Plot.plot({
       width,
       height,
@@ -167,7 +184,7 @@ function renderTreemap(widget, rows) {
       marks: [
         // Group circles (household type) -- outline only, leaves drawn on top
         Plot.dot(groupNodes, {x: "x", y: "y", r: "r", fill: "none", stroke: "currentColor", strokeOpacity: 0.3, strokeWidth: 1.5}),
-        Plot.text(groupNodes, {x: "x", y: (d) => Math.max(d.y - d.r - 8, 10), text: (d) => d.data.name, fontWeight: 700, fontSize: 12, fill: "currentColor"}),
+        Plot.text(groupNodes, {x: "x", y: (d) => Math.max(d.y - d.r - 8, 10), text: (d) => shortGroupName(d.data.name), fontWeight: 700, fontSize: 12, fill: "currentColor"}),
         // Leaves (engagement state within each household type), colored by segment
         Plot.dot(leaves, {
           x: "x",
