@@ -245,6 +245,19 @@ function renderTable(widget, rows) {
   </table></div>`;
 }
 
+// Width overrides for widgets whose YAML `col` (full-width on every tab) reads
+// too wide on this site: "Current Quarter" is a one-line date range, not
+// worth a full row, so it's pinned to a 3/12 span (~320px of the page's
+// 1280px max width, matching the dashboard's existing metric-tile width
+// convention). On the three tabs where it's immediately followed by the
+// "Project Type Filter Note" text widget, renderTab() below merges that
+// note into the same row, so it gets the complementary 9/12 span to fill
+// the rest of the row beside it.
+const SPAN_OVERRIDES = {
+  "Current Quarter": 3,
+  "Project Type Filter Note": 9
+};
+
 function renderWidget(bridge, widget, filterValues) {
   const rows = widgetRows(bridge, widget, filterValues);
   let body;
@@ -259,7 +272,8 @@ function renderWidget(bridge, widget, filterValues) {
   else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
 
   const isNote = widget.type === "text";
-  return html`<section class="bridge-card${isNote ? " bridge-note" : ""}${widget.type === "metric" ? " bridge-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
+  const span = SPAN_OVERRIDES[widget.name] ?? widget.col ?? 12;
+  return html`<section class="bridge-card${isNote ? " bridge-note" : ""}${widget.type === "metric" ? " bridge-card-metric" : ""}" style="--span:${span}" data-widget=${widget.id}>
     ${isNote ? null : html`<h3 class="bridge-card-title">${widget.name}</h3>`}
     ${body}
   </section>`;
@@ -316,10 +330,30 @@ function renderEngagementLegend(rows) {
   `)}</div>`;
 }
 
+// balbridge.yml puts "Current Quarter" and the following tab's "Project Type
+// Filter Note" in their own full-width rows. Merging them into one row here
+// (rather than in bridge.json.py, which just mirrors the YAML's row shape)
+// is what lets the note sit beside Current Quarter's new 3/12 span instead
+// of leaving the rest of that row empty -- see SPAN_OVERRIDES above.
+function mergeQuarterNoteRows(rows) {
+  const merged = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const next = rows[i + 1];
+    if (row.length === 1 && row[0].name === "Current Quarter" && next?.length === 1 && next[0].name === "Project Type Filter Note") {
+      merged.push([row[0], next[0]]);
+      i++;
+    } else {
+      merged.push(row);
+    }
+  }
+  return merged;
+}
+
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
-  return html`<div class="bridge-tab">${tab.rows.map((row) => {
+  return html`<div class="bridge-tab">${mergeQuarterNoteRows(tab.rows).map((row) => {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`
     ${treemapWidget ? renderEngagementLegend(widgetRows(bridge, treemapWidget, filterValues)) : null}
