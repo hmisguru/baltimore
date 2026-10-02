@@ -490,6 +490,94 @@ rows:
           GROUP BY indicator
           ORDER BY indicator
         type: table
+  - height: 450px
+    tab: Demographics
+    widgets:
+      - chart: pie
+        col: 12
+        id: age_pie
+        name: Age of People Served — Current Quarter
+        sql: |
+          SELECT
+            `set` AS age,
+            SUM(value) AS people_served
+          FROM `baldashboard.performance_metrics`
+          WHERE category = 'Age'
+            AND project_type IN ('ES,SH,TH', 'RRH')
+            AND date = (SELECT MAX(date) FROM `baldashboard.performance_metrics`)
+            AND (CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END = 'ALL' OR population_group = CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END)
+            AND (CASE '{{ filters.project_type }}' WHEN 'ES/SH/TH' THEN 'ES,SH,TH' WHEN 'RRH' THEN 'RRH' ELSE 'ALL' END = 'ALL' OR project_type = CASE '{{ filters.project_type }}' WHEN 'ES/SH/TH' THEN 'ES,SH,TH' WHEN 'RRH' THEN 'RRH' ELSE 'ALL' END)
+          GROUP BY 1
+          ORDER BY 1
+        type: chart
+        label: age
+        value:
+          field: people_served
+          format: ",.0f"
+  - height: 400px
+    tab: Demographics
+    widgets:
+      - col: 12
+        columns:
+          - label: Indicator
+            name: indicator
+          - align: right
+            label: Current Quarter
+            name: current_value
+            number: number
+          - align: right
+            label: Previous Quarter
+            name: previous_value
+            number: number
+          - align: right
+            label: Quarterly Change
+            name: qoq_change
+            number: ".1%"
+        id: age_qoq
+        name: Age of People Served
+        sql: |
+          WITH scoped AS (
+            SELECT
+              date,
+              `set` AS indicator,
+              CASE `set`
+                WHEN '<1' THEN 1
+                WHEN '1 to 2' THEN 2
+                WHEN '3 to 5' THEN 3
+                WHEN '6 to 17' THEN 4
+                WHEN '17 year-olds who turned 18' THEN 5
+                WHEN '18 to 21' THEN 6
+                WHEN '22 to 24' THEN 7
+                WHEN '25 to 34' THEN 8
+                WHEN '35 to 44' THEN 9
+                WHEN '45 to 54' THEN 10
+                WHEN '55 to 64' THEN 11
+                WHEN '65 and Older' THEN 12
+                ELSE 13
+              END AS indicator_sort,
+              SUM(value) AS value
+            FROM `baldashboard.performance_metrics`
+            WHERE category = 'Age'
+              AND project_type IN ('ES,SH,TH', 'RRH')
+              AND (CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END = 'ALL' OR population_group = CASE '{{ filters.household_type }}' WHEN 'Adults Only' THEN 'AO' WHEN 'Families with Children' THEN 'AC' WHEN 'Unaccompanied Minors' THEN 'CO' ELSE 'ALL' END)
+              AND (CASE '{{ filters.project_type }}' WHEN 'ES/SH/TH' THEN 'ES,SH,TH' WHEN 'RRH' THEN 'RRH' ELSE 'ALL' END = 'ALL' OR project_type = CASE '{{ filters.project_type }}' WHEN 'ES/SH/TH' THEN 'ES,SH,TH' WHEN 'RRH' THEN 'RRH' ELSE 'ALL' END)
+            GROUP BY 1, 2, 3
+          ), ranked AS (
+            SELECT date, DENSE_RANK() OVER (ORDER BY date DESC) AS period_rank
+            FROM (SELECT DISTINCT date FROM scoped)
+          )
+          SELECT
+            indicator,
+            MAX(IF(period_rank = 1, value, NULL)) AS current_value,
+            MAX(IF(period_rank = 2, value, NULL)) AS previous_value,
+            SAFE_DIVIDE(MAX(IF(period_rank = 1, value, NULL)) - MAX(IF(period_rank = 2, value, NULL)), MAX(IF(period_rank = 2, value, NULL))) AS qoq_change,
+            MIN(indicator_sort) AS indicator_sort
+          FROM scoped
+          JOIN ranked USING (date)
+          WHERE period_rank <= 2
+          GROUP BY indicator
+          ORDER BY indicator_sort
+        type: table
   - tab: System Engagement
     widgets:
       - col: 12
