@@ -245,6 +245,26 @@ function renderTable(widget, rows) {
   </table></div>`;
 }
 
+// Plain-language merge of "Households Exiting to Permanent Housing" (a bare
+// current-quarter count) with "Exits to Permanent Housing — Trend" (a
+// one-row table of pct_of_average/comparison_label/rolling_avg_4q) into a
+// single tile: the big number, plus one sentence instead of a separate badge
+// column a reader has to cross-reference against "4-Quarter Average" and
+// "Comparison" columns themselves. Keeps the original table cell's
+// green-above/red-below color coding (same STATUS_COLORS, same >= 1
+// threshold as its `if: greater_than_or_equal` rule) as a colored sentence
+// badge, paired with an arrow so color is never the only signal.
+function renderExitsSummary(metricWidget, metricRows, trendRows) {
+  if (!metricRows.length || !trendRows.length) return empty();
+  const value = numberFormat(metricWidget.value.format)(metricRows[0][metricWidget.value.field]);
+  const {pct_of_average, rolling_avg_4q} = trendRows[0];
+  const above = pct_of_average >= 1;
+  const pct = d3format(".1%")(pct_of_average);
+  const avg = numberFormat("number")(rolling_avg_4q);
+  return html`<div class="bridge-metric">${value}</div>
+    <p class="bridge-exits-pill" style="background:${STATUS_COLORS[above ? "green" : "red"]}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average based on the previous 12 months</p>`;
+}
+
 // Width overrides for widgets whose YAML `col` (full-width on every tab) reads
 // too wide on this site: "Current Quarter" is a one-line date range, not
 // worth a full row, so it's pinned to a 3/12 span (~320px of the page's
@@ -350,6 +370,22 @@ function mergeQuarterNoteRows(rows) {
   return merged;
 }
 
+// On Positive Outcomes, "Households Exiting to Permanent Housing" and "Exits
+// to Permanent Housing — Trend" sit side by side in the same YAML row; this
+// replaces that pair with one combined card (renderExitsSummary) spanning
+// both their widths, leaving any other widget in the row (the destination
+// breakdown table) untouched and in its original position.
+function renderRowWidgets(bridge, row, filterValues) {
+  const metricWidget = row.find((w) => w.name === "Households Exiting to Permanent Housing");
+  const trendWidget = row.find((w) => w.name === "Exits to Permanent Housing — Trend");
+  if (!metricWidget || !trendWidget) return row.map((w) => renderWidget(bridge, w, filterValues));
+  const combined = html`<section class="bridge-card bridge-card-metric" style="--span:${(metricWidget.col ?? 0) + (trendWidget.col ?? 0)}" data-widget=${metricWidget.id}>
+    <h3 class="bridge-card-title">${metricWidget.name}</h3>
+    ${renderExitsSummary(metricWidget, widgetRows(bridge, metricWidget, filterValues), widgetRows(bridge, trendWidget, filterValues))}
+  </section>`;
+  return [combined, ...row.filter((w) => w !== metricWidget && w !== trendWidget).map((w) => renderWidget(bridge, w, filterValues))];
+}
+
 /** All rows of one tab, laid out on the dashboard's 12-column grid. */
 export function renderTab(bridge, tabName, filterValues) {
   const tab = bridge.tabs.find((t) => t.name === tabName) ?? bridge.tabs[0];
@@ -357,7 +393,7 @@ export function renderTab(bridge, tabName, filterValues) {
     const treemapWidget = row.find((w) => w.name === "System engagement by household type");
     return html`
     ${treemapWidget ? renderEngagementLegend(widgetRows(bridge, treemapWidget, filterValues)) : null}
-    <div class="bridge-row">${row.map((w) => renderWidget(bridge, w, filterValues))}</div>
+    <div class="bridge-row">${renderRowWidgets(bridge, row, filterValues)}</div>
   `;
   })}</div>`;
 }
