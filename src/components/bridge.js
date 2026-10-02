@@ -8,7 +8,7 @@ import {format as d3format} from "npm:d3-format";
 import {marked} from "npm:marked";
 import {html} from "npm:htl";
 import * as Inputs from "npm:@observablehq/inputs";
-import {hierarchy, treemap as d3treemap} from "npm:d3-hierarchy";
+import {hierarchy, pack} from "npm:d3-hierarchy";
 import {resize} from "observablehq:stdlib";
 
 // Validated categorical palette (dataviz skill reference instance, light mode):
@@ -116,16 +116,17 @@ function renderPie(widget, rows) {
   }));
 }
 
-// True treemap: d3-hierarchy computes the rectangle layout (Plot has no
-// hierarchical-layout mark of its own), Plot.rect draws it so it stays
-// visually/interactively consistent with the rest of this file (color
-// scale, Plot.tip, resize()). Two-level hierarchy: widget.label split on
-// " — " gives the group (household type) and part (engagement state);
-// group nodes get a padded header strip for their own label, leaves are
-// colored individually from the widget's own `slices` map in the YAML
-// (keyed by the full "Group — Part" label) -- the only widget on this
-// dashboard that uses those per-segment colors, since the previous
-// stacked-bar rendering never read widget.slices at all.
+// Round treemap: a d3-hierarchy circle-packing layout instead of the
+// rectangular squarify tiling. Same two-level hierarchy as before
+// (widget.label split on " — " gives group/household-type and
+// part/engagement-state), same color-scale/Plot.tip/resize() conventions,
+// and the same per-segment colors from widget.slices -- just nested
+// circles (one per household type, containing one leaf circle per
+// engagement state) in place of nested rectangles. Plot has no circle-
+// packing mark either, so d3.pack() computes x/y/r for every node and
+// Plot.dot draws them; `r: {type: "identity"}` tells Plot to use those
+// precomputed radii as literal pixels instead of running them through
+// its own auto-fit radius scale.
 function renderTreemap(widget, rows) {
   if (!rows.length) return empty();
   const value = widget.value.field;
@@ -139,20 +140,36 @@ function renderTreemap(widget, rows) {
   const slices = widget.slices ?? {};
   const color = {
     domain: segments,
-    range: segments.map((s, i) => slices[s]?.color ?? SERIES[i % SERIES.length]),
-    legend: true
+    range: segments.map((s, i) => slices[s]?.color ?? SERIES[i % SERIES.length])
   };
-  const HEADER = 22;
 
   const root = hierarchy({children: groups.map((g) => ({name: g, children: data.filter((d) => d._group === g)}))})
     .sum((d) => d[value] ?? 0)
     .sort((a, b) => b.value - a.value);
 
   return resize((width) => {
-    const height = 70 + groups.length * 130;
-    d3treemap().size([width, height]).paddingOuter(4).paddingTop(HEADER).paddingInner(2)(root);
+    const height = Math.max(360, width * 0.55);
+    // Extra padding between groups (depth 0, i.e. around the root's own
+    // children) than within a group (depth 1+), so a household type's
+    // header label always has clear space from its neighbors -- pack()
+    // doesn't guarantee each group its own row the way the treemap's
+    // squarify tiling did, so a small group (Unaccompanied Minors, here
+    // abbreviated "UA" for the same reason -- shorter header, less
+    // chance of overlap) can otherwise land tucked right against a much
+    // bigger neighbor with no room for its label above it.
+    pack().size([width, height]).padding((d) => (d.depth === 0 ? 90 : 6))(root);
+    const groupNodes = root.children;
     const leaves = root.leaves();
-    const big = leaves.filter((d) => d.x1 - d.x0 > 64 && d.y1 - d.y0 > 30);
+    const shortGroupName = (name) => (name === "Unaccompanied Minors" ? "UA" : name);
+    // A flat radius cutoff isn't enough to keep a leaf's own label legible:
+    // "Established" is more than 3x wider than "New", so a circle sized to
+    // comfortably fit the latter can still render the former overflowing
+    // past its own edge -- white text past a colored circle's boundary is
+    // white-on-white against the page background, i.e. invisible, not
+    // merely clipped. Estimate each label's own pixel width instead of
+    // using one threshold for every segment.
+    const textWidth = (s, size = 11) => s.length * size * 0.56;
+    const big = leaves.filter((d) => d.r > 16 && d.r * 2 - 6 > textWidth(d.data._part));
     return Plot.plot({
       width,
       height,
@@ -162,19 +179,20 @@ function renderTreemap(widget, rows) {
       marginBottom: 0,
       x: {domain: [0, width], axis: null},
       y: {domain: [height, 0], axis: null},
+      r: {type: "identity"},
       color,
       marks: [
-        // Group header bands + labels (household type)
-        Plot.rect(root.children, {x1: "x0", x2: "x1", y1: "y0", y2: (d) => Math.min(d.y0 + HEADER, d.y1), fill: "currentColor", fillOpacity: 0.06}),
-        Plot.text(root.children, {x: "x0", y: "y0", dx: 6, dy: 14, text: (d) => d.data.name, textAnchor: "start", fontWeight: 700, fontSize: 12, fill: "currentColor"}),
+        // Group circles (household type) -- outline only, leaves drawn on top
+        Plot.dot(groupNodes, {x: "x", y: "y", r: "r", fill: "none", stroke: "currentColor", strokeOpacity: 0.3, strokeWidth: 1.5}),
+        Plot.text(groupNodes, {x: "x", y: (d) => Math.max(d.y - d.r - 8, 10), text: (d) => shortGroupName(d.data.name), fontWeight: 700, fontSize: 12, fill: "currentColor"}),
         // Leaves (engagement state within each household type), colored by segment
-        Plot.rect(leaves, {
-          x1: "x0", x2: "x1", y1: "y0", y2: "y1",
+        Plot.dot(leaves, {
+          x: "x",
+          y: "y",
+          r: "r",
           fill: (d) => d.data[widget.label],
           stroke: "var(--theme-background)",
           strokeWidth: 1.5,
-          inset: 0.5,
-          rx: 2,
           channels: {
             "Household type": (d) => d.data._group,
             "Engagement state": (d) => d.data._part,
@@ -191,8 +209,8 @@ function renderTreemap(widget, rows) {
             }
           }
         }),
-        Plot.text(big, {x: (d) => (d.x0 + d.x1) / 2, y: (d) => (d.y0 + d.y1) / 2, dy: -6, text: (d) => d.data._part, fill: "white", fontWeight: 600, fontSize: 11}),
-        Plot.text(big, {x: (d) => (d.x0 + d.x1) / 2, y: (d) => (d.y0 + d.y1) / 2, dy: 10, text: (d) => fmt(d.data[value]), fill: "white", fontSize: 11})
+        Plot.text(big, {x: "x", y: (d) => d.y - 6, text: (d) => d.data._part, fill: "white", fontWeight: 600, fontSize: 11}),
+        Plot.text(big, {x: "x", y: (d) => d.y + 8, text: (d) => fmt(d.data[value]), fill: "white", fontSize: 11})
       ]
     });
   });
