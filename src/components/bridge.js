@@ -276,22 +276,22 @@ const ENGAGEMENT_STATES = [
   {
     label: "Established",
     accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed",
-    definition: "A household persistently in the homeless housing system that doesn't fit the other states."
+    definition: "Continuously homeless since a prior report period — doesn't fit the other three states."
   },
   {
     label: "New",
     accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6",
-    definition: "A first-time household in the system: entered an ES, SH, TH, RRH:H, or PSH project during the report period and was not enrolled in such projects at any point in the two years prior to entry."
+    definition: "First-time entry into the system, with no enrollment in the two years prior."
   },
   {
     label: "Recurring",
     accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9",
-    definition: "A household re-engaging with the system from a temporary or unknown destination: entered an ES, SH, TH, RRH:H, or PSH project during the report period, with a previous exit to a temporary/unknown destination from a continuum project in the 15-730 days prior."
+    definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit."
   },
   {
     label: "Returned",
     accent: "#eda100", bg: "#f9f5eb", border: "#eddbb6",
-    definition: "A household returning to the system from a permanent destination: entered an ES, SH, TH, RRH:H, or PSH project during the report period, with a previous exit to a permanent destination from a continuum project in the 15-730 days prior."
+    definition: "Re-entered the system 15–730 days after a permanent-housing exit."
   }
 ];
 
