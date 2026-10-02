@@ -262,9 +262,12 @@ function renderTable(widget, rows) {
   </table></div>`;
 }
 
-// One sentence built from a "... — Trend" widget's own one-row table
+// One short phrase built from a "... — Trend" widget's own one-row table
 // (pct_of_average/comparison_label/rolling_avg_4q), e.g. "▼ 43.5% below the
-// 675.5 average based on the previous 12 months" -- instead of a separate
+// 675.5 average" -- that average is the same trailing 4 quarters
+// (rolling_avg_4q) throughout this file; per explicit request the phrase
+// no longer spells that out ("based on the previous 12 months"), favoring
+// brevity over restating it on every tile. Built instead of a separate
 // badge column a reader has to cross-reference against "4-Quarter Average"
 // and "Comparison" columns themselves. pct_of_average is current/average as
 // a ratio (e.g. 1.0010 when current is barely above average); the pill's
@@ -292,14 +295,14 @@ function trendPill(trendWidget, trendRows) {
   const avg = numberFormat("number")(rolling_avg_4q);
   const change = pct_of_average - 1;
   if (Math.abs(change) < NEGLIGIBLE_CHANGE) {
-    return html`<p class="bridge-exits-pill" style="background:var(--bridge-muted)">≈ About the same as the ${avg} average based on the previous 12 months</p>`;
+    return html`<p class="bridge-exits-pill" style="background:var(--bridge-muted)">≈ About the ${avg} average</p>`;
   }
   const above = change > 0;
   const pct = d3format(".1%")(Math.abs(change));
   const pctColumn = trendWidget.columns?.find((c) => c.name === "pct_of_average");
   const rule = styleFor(pctColumn?.format, pct_of_average);
   const bg = STATUS_COLORS[rule?.backgroundColor] ?? rule?.backgroundColor ?? STATUS_COLORS[above ? "green" : "red"];
-  return html`<p class="bridge-exits-pill" style="background:${bg}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average based on the previous 12 months</p>`;
+  return html`<p class="bridge-exits-pill" style="background:${bg}">${above ? "▲" : "▼"} ${pct} ${above ? "above" : "below"} the ${avg} average</p>`;
 }
 
 // Plain-language merge of a bare current-quarter count metric widget with
