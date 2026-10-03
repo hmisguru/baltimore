@@ -1,5 +1,31 @@
 /* Housing Inventory dashboard styles, scoped to /inventory/. */
 :root { --inv-purple: #60397c; --inv-deep: #2f1c3d; --inv-gold: #fabe21; --inv-surface: #f4fafb; --inv-border: #d9e7ea; --inv-muted: #4f4a57; }
+
+/* Light/dark toggle, default light -- user-controlled (not OS-driven), via a
+   [data-theme] attribute set on <html> by renderThemeToggle() in
+   inventory.js. Overriding Framework's own --theme-foreground/
+   --theme-background-* custom properties here flips the page background,
+   text, and link color for free; redefining this file's own --inv-* custom
+   properties at this same scope recolors every element that already
+   references them (eyebrow, lede, card surfaces/borders, descriptions,
+   footnote) without needing a per-selector override -- only the few
+   hardcoded-hex rules below (.inv-metric, .inv-table's hairline) need an
+   explicit dark variant. Surface/text tokens match kpi.js's own
+   data-theme="dark" variant (deep purple / gold / white) for visual
+   consistency with the embeddable KPI tiles elsewhere on this site; the
+   page background is a touch darker than the card surface for depth. */
+html[data-theme="dark"] {
+  --inv-purple: #d9cfe3;
+  --inv-deep: #ffffff;
+  --inv-surface: #2f1c3d;
+  --inv-border: #4a3659;
+  --inv-muted: #c3b8d1;
+  --theme-foreground: #ffffff;
+  --theme-background-a: #1f1428;
+  --theme-background-b: #1f1428;
+  --theme-foreground-focus: #fabe21;
+  color-scheme: dark;
+}
 #observablehq-main { max-width: 1280px; }
 .inv-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
 .inv-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--inv-purple); }
@@ -14,19 +40,50 @@
    tint bridge.js's System Engagement tiles already use. Comes after
    .inv-card-metric so --tile-accent wins over the default gold stripe. */
 .inv-card-housing { background: var(--tile-bg); border-color: var(--tile-border); border-top-color: var(--tile-accent); }
+html[data-theme="dark"] .inv-card-housing { background: var(--tile-bg-dark); border-color: var(--tile-border-dark); border-top-color: var(--tile-accent-dark); }
+html[data-theme="dark"] .inv-card-icon { color: var(--tile-accent-dark); }
 .inv-card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--inv-deep); max-width: none; }
 .inv-card-icon { width: 18px; height: 18px; flex: none; color: var(--tile-accent); }
 .inv-card-description { margin: 0 0 10px; font-size: 13px; color: var(--inv-muted); max-width: none; }
 .inv-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
 .inv-metric-text { font-size: 18px; font-weight: 600; line-height: 1.4; color: #161616; }
+html[data-theme="dark"] .inv-metric, html[data-theme="dark"] .inv-metric-text { color: #ffffff; }
 .inv-empty { color: var(--inv-muted); font-style: italic; margin: 0; }
 .inv-table-wrap { overflow-x: auto; }
 .inv-table { width: 100%; max-width: none; font-size: 14px; border-collapse: collapse; }
 .inv-table th { vertical-align: top; font-size: 13px; padding: 6px 10px; border-bottom: 1px solid var(--inv-border); text-align: left; }
 .inv-table thead th { vertical-align: bottom; }
 .inv-table td { padding: 6px 10px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; text-align: right; }
+html[data-theme="dark"] .inv-table td { border-bottom-color: #4a3659; color: #ffffff; }
 .inv-table tbody tr:last-child td { border-bottom: 0; }
 .inv-footnote { font-size: 13px; color: var(--inv-muted); max-width: none; }
+
+/* Theme toggle -- a plain pill button whose own label text swaps between
+   "Dark mode"/"Light mode" (per explicit request, not a switch). Colors
+   match kpi.js's dark-mode tokens (deep purple surface, gold accent). */
+.inv-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--inv-border);
+  border-radius: 999px;
+  background: var(--inv-surface);
+  color: var(--inv-deep);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.inv-theme-toggle:hover { border-color: var(--inv-purple); }
+html[data-theme="dark"] .inv-theme-toggle:hover { border-color: var(--inv-gold); }
+.inv-theme-toggle:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .inv-theme-toggle:focus-visible { outline-color: var(--inv-gold); }
+@media (prefers-reduced-motion: reduce) {
+  .inv-theme-toggle { transition: none; }
+}
+
 @media (max-width: 760px) {
   .inv-row { grid-template-columns: 1fr; }
   .inv-card { grid-column: 1 / -1; }

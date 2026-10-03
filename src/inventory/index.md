@@ -6,7 +6,7 @@ toc: false
 <link rel="stylesheet" href="../components/inventory.css">
 
 ```js
-import {inventoryInputs, renderRows, renderFootnote} from "../components/inventory.js";
+import {inventoryInputs, renderRows, renderFootnote, renderThemeToggle} from "../components/inventory.js";
 const doc = FileAttachment("../data/inventory.json").json();
 ```
 
@@ -15,6 +15,10 @@ const doc = FileAttachment("../data/inventory.json").json();
   <h1>${doc.name}</h1>
   <p class="inv-lede">${doc.description}</p>
 </div>
+
+```js
+display(renderThemeToggle());
+```
 
 ```js
 const inputs = inventoryInputs(doc);
