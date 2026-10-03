@@ -58,58 +58,30 @@ html[data-theme="dark"] .inv-table td { border-bottom-color: #4a3659; color: #ff
 .inv-table tbody tr:last-child td { border-bottom: 0; }
 .inv-footnote { font-size: 13px; color: var(--inv-muted); max-width: none; }
 
-/* Theme toggle switch -- same role="switch"/track+thumb convention as
-   kpi.js's own "MOHS-funded projects only" switch on this site (a static
-   label, the switch position carries on/off), not a button whose text
-   changes. Color tokens match kpi.js's --bkpi-switch-* values exactly. */
-.inv-switch {
+/* Theme toggle -- a plain pill button whose own label text swaps between
+   "Dark mode"/"Light mode" (per explicit request, not a switch). Colors
+   match kpi.js's dark-mode tokens (deep purple surface, gold accent). */
+.inv-theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   margin-bottom: 16px;
-  padding: 4px 0;
-  border: 0;
-  background: none;
+  padding: 6px 14px;
+  border: 1px solid var(--inv-border);
+  border-radius: 999px;
+  background: var(--inv-surface);
   color: var(--inv-deep);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
 }
-.inv-switch:focus-visible { outline: 2px solid #8837ef; outline-offset: 4px; border-radius: 4px; }
-html[data-theme="dark"] .inv-switch:focus-visible { outline-color: var(--inv-gold); }
-.inv-switch-track {
-  position: relative;
-  flex: none;
-  width: 44px;
-  height: 24px;
-  border-radius: 12px;
-  background: #8a8391;
-  transition: background-color 0.15s;
-}
-html[data-theme="dark"] .inv-switch-track { background: #8a7f96; }
-.inv-switch-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition: transform 0.15s;
-}
-html[data-theme="dark"] .inv-switch-thumb { background: #2f1c3d; }
-/* Fixed #60397c here, not var(--inv-purple) -- that variable is redefined
-   to a light lavender for the eyebrow text in dark mode, a different job. */
-.inv-switch[aria-checked="true"] .inv-switch-track { background: #60397c; }
-html[data-theme="dark"] .inv-switch[aria-checked="true"] .inv-switch-track { background: var(--inv-gold); }
-.inv-switch[aria-checked="true"] .inv-switch-thumb { transform: translateX(20px); }
+.inv-theme-toggle:hover { border-color: var(--inv-purple); }
+html[data-theme="dark"] .inv-theme-toggle:hover { border-color: var(--inv-gold); }
+.inv-theme-toggle:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .inv-theme-toggle:focus-visible { outline-color: var(--inv-gold); }
 @media (prefers-reduced-motion: reduce) {
-  .inv-switch-track, .inv-switch-thumb { transition: none; }
-}
-@media (forced-colors: active) {
-  .inv-switch-track { border: 1px solid ButtonText; }
-  .inv-switch[aria-checked="true"] .inv-switch-track { background: Highlight; }
+  .inv-theme-toggle { transition: none; }
 }
 
 @media (max-width: 760px) {

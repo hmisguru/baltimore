@@ -273,33 +273,28 @@ function applyTheme(theme) {
   }
 }
 
-/**
- * A light/dark theme toggle switch, default light -- see inventory.css for
+/** A light/dark theme toggle button, default light -- see inventory.css for
  * the [data-theme] styling this drives on <html> (so it also recolors
  * Framework's own page chrome, not just .inv-* elements). Remembers the
  * visitor's choice via localStorage, but every first-ever visit starts
- * light. Styled as a true switch (role="switch", a track + thumb, a static
- * label), matching kpi.js's own "MOHS-funded projects only" switch
- * convention already on this site, rather than a button whose label text
- * swaps between "Light mode"/"Dark mode".
- */
+ * light. A plain button whose own label swaps between "🌙 Dark mode" and
+ * "☀️ Light mode", per explicit request -- not a switch. */
 export function renderThemeToggle() {
   const theme = storedTheme() === "dark" ? "dark" : "light";
   applyTheme(theme);
 
-  // aria-checked set via setAttribute, not template interpolation -- htl
-  // treats aria-checked as a presence-only boolean attribute (confirmed
-  // live: aria-checked=${theme === "dark"} rendered aria-checked="" instead
-  // of "true"/"false"), same reason kpi.js's own switch sets it this way.
-  const button = html`<button type="button" class="inv-switch" role="switch">
-    <span class="inv-switch-track" aria-hidden="true"><span class="inv-switch-thumb"></span></span>
-    <span class="inv-switch-label">Dark mode</span>
-  </button>`;
-  button.setAttribute("aria-checked", String(theme === "dark"));
+  // aria-pressed set via setAttribute, not template interpolation -- htl
+  // treats it as a presence-only boolean attribute (confirmed live for the
+  // equivalent aria-checked case: interpolating a boolean rendered an empty
+  // aria-pressed="" instead of "true"/"false").
+  const label = (t) => (t === "dark" ? "☀️ Light mode" : "🌙 Dark mode");
+  const button = html`<button type="button" class="inv-theme-toggle">${label(theme)}</button>`;
+  button.setAttribute("aria-pressed", String(theme === "dark"));
   button.addEventListener("click", () => {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     applyTheme(next);
-    button.setAttribute("aria-checked", String(next === "dark"));
+    button.setAttribute("aria-pressed", String(next === "dark"));
+    button.textContent = label(next);
   });
   return button;
 }
