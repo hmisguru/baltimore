@@ -61,10 +61,23 @@ const HOUSING_GROUPS = {
   "Other Permanent Housing Beds": "permanent",
 };
 
+// Dark variants use this site's own dark accent steps (dataviz skill
+// reference palette) at the card-surface-blended tints kpi.js's own
+// data-theme="dark" surface (#2f1c3d) already establishes for this site --
+// validated with scripts/validate_palette.js against that exact surface.
 const GROUP_STYLE = {
-  crisis: {accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed", label: "Crisis housing"},
-  bridge: {accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6", label: "Bridge housing"},
-  permanent: {accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9", label: "Permanent housing"},
+  crisis: {
+    accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed", label: "Crisis housing",
+    accentDark: "#3987e5", bgDark: "#312d58", borderDark: "#33457d"
+  },
+  bridge: {
+    accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6", label: "Bridge housing",
+    accentDark: "#d95926", bgDark: "#4a2639", borderDark: "#703334"
+  },
+  permanent: {
+    accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9", label: "Permanent housing",
+    accentDark: "#199e70", bgDark: "#2b3145", borderDark: "#274d50"
+  },
 };
 
 // Minimal line icons (stroke-based, 1.75px, round caps -- one shared family),
@@ -177,7 +190,12 @@ function renderNestedPivot(widget, rows) {
           const fmt = numberFormat(columnFormat(v.label));
           const text = val == null ? "—" : fmt(val);
           const bg = gradientFor(v.format, val);
-          return html`<td style=${bg ? `background:${bg}` : ""}>${text}</td>`;
+          // The gradient stays light-pastel in both themes (see
+          // GRADIENT_COLORS above), so its cells need dark text forced
+          // regardless of theme -- otherwise dark mode's page-wide light
+          // text color would wash out against these light backgrounds.
+          const style = bg ? `background:${bg};color:#161616` : "";
+          return html`<td style=${style}>${text}</td>`;
         })}
       </tr>`;
     }))}</tbody>
@@ -194,7 +212,10 @@ function renderWidget(doc, widget, filterValues) {
   const group = HOUSING_GROUPS[widget.name];
   const style = group ? GROUP_STYLE[group] : null;
   const cardClass = `inv-card${widget.type === "metric" ? " inv-card-metric" : ""}${group ? " inv-card-housing" : ""}`;
-  const cardStyle = `--span:${widget.col ?? 12}` + (style ? `;--tile-accent:${style.accent};--tile-bg:${style.bg};--tile-border:${style.border}` : "");
+  const cardStyle = `--span:${widget.col ?? 12}` + (style
+    ? `;--tile-accent:${style.accent};--tile-bg:${style.bg};--tile-border:${style.border}` +
+      `;--tile-accent-dark:${style.accentDark};--tile-bg-dark:${style.bgDark};--tile-border-dark:${style.borderDark}`
+    : "");
 
   return html`<section class="${cardClass}" style="${cardStyle}" data-widget=${widget.id}>
     <h3 class="inv-card-title">${group ? groupIcon(group) : null}${widget.name}</h3>
@@ -231,4 +252,54 @@ const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZon
 /** "Dashboard refreshed …", in Eastern time. */
 export function renderFootnote(doc) {
   return html`<p class="inv-footnote">Dashboard refreshed ${eastern(doc.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`;
+}
+
+const THEME_KEY = "inv-theme";
+
+function storedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Private browsing / blocked storage: theme still applies for this page view.
+  }
+}
+
+/**
+ * A light/dark theme toggle switch, default light -- see inventory.css for
+ * the [data-theme] styling this drives on <html> (so it also recolors
+ * Framework's own page chrome, not just .inv-* elements). Remembers the
+ * visitor's choice via localStorage, but every first-ever visit starts
+ * light. Styled as a true switch (role="switch", a track + thumb, a static
+ * label), matching kpi.js's own "MOHS-funded projects only" switch
+ * convention already on this site, rather than a button whose label text
+ * swaps between "Light mode"/"Dark mode".
+ */
+export function renderThemeToggle() {
+  const theme = storedTheme() === "dark" ? "dark" : "light";
+  applyTheme(theme);
+
+  // aria-checked set via setAttribute, not template interpolation -- htl
+  // treats aria-checked as a presence-only boolean attribute (confirmed
+  // live: aria-checked=${theme === "dark"} rendered aria-checked="" instead
+  // of "true"/"false"), same reason kpi.js's own switch sets it this way.
+  const button = html`<button type="button" class="inv-switch" role="switch">
+    <span class="inv-switch-track" aria-hidden="true"><span class="inv-switch-thumb"></span></span>
+    <span class="inv-switch-label">Dark mode</span>
+  </button>`;
+  button.setAttribute("aria-checked", String(theme === "dark"));
+  button.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    button.setAttribute("aria-checked", String(next === "dark"));
+  });
+  return button;
 }
