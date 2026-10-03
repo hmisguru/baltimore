@@ -8,7 +8,14 @@
 .inv-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .inv-card { grid-column: span var(--span); min-width: 0; padding: 16px 20px; background: var(--inv-surface); border: 1px solid var(--inv-border); border-radius: 12px; }
 .inv-card-metric { border-top: 4px solid var(--inv-gold); }
-.inv-card-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--inv-deep); max-width: none; }
+/* Crisis/bridge/permanent housing-continuum grouping (see HOUSING_GROUPS in
+   inventory.js) -- a categorical identity color, not a status judgment, so
+   it reuses this site's validated categorical hues at the same light pastel
+   tint bridge.js's System Engagement tiles already use. Comes after
+   .inv-card-metric so --tile-accent wins over the default gold stripe. */
+.inv-card-housing { background: var(--tile-bg); border-color: var(--tile-border); border-top-color: var(--tile-accent); }
+.inv-card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--inv-deep); max-width: none; }
+.inv-card-icon { width: 18px; height: 18px; flex: none; color: var(--tile-accent); }
 .inv-card-description { margin: 0 0 10px; font-size: 13px; color: var(--inv-muted); max-width: none; }
 .inv-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
 .inv-metric-text { font-size: 18px; font-weight: 600; line-height: 1.4; color: #161616; }
