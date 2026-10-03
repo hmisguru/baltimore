@@ -72,7 +72,7 @@ const GROUP_STYLE = {
 // title, so each is aria-hidden rather than needing its own alt text.
 const GROUP_ICONS = {
   crisis: `<path d="M2 17v3M2 17v-5a2 2 0 0 1 2-2h4v4"/><path d="M2 17h20v-3a2 2 0 0 0-2-2h-9"/><path d="M22 17v3"/><rect x="4" y="10" width="5" height="4" rx="1"/>`,
-  bridge: `<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>`,
+  bridge: `<path d="M4 20v-4h4v-4h4v-4h4v-4h4"/>`,
   permanent: `<path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5"/>`,
 };
 
