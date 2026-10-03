@@ -101,12 +101,11 @@ function groupIcon(group) {
 // Gradient cell backgrounds: DAC's conditional-format "no if" layer
 // (backgroundColor: a list of named colors, range: the value at each
 // stop, unit: absolute -- the range values ARE the raw data values, not
-// percentiles). Dark, saturated stops (not light pastel tints) paired with
-// forced white cell text below -- chosen so every stop, and the linear
-// mix between any two, clears 4.5:1 contrast against white (verified:
-// red #DC2626 4.83:1, amber #B45309 5.02:1, green #15803D 5.01:1, with
-// interpolated midpoints measuring even higher).
-const GRADIENT_COLORS = {red: "#DC2626", amber: "#B45309", green: "#15803D"};
+// percentiles). Light pastel stops (not the saturated token names
+// themselves) so dark body text stays readable at every point along the
+// gradient, the same convention the create-dashboard skill's own gradient
+// example uses.
+const GRADIENT_COLORS = {red: "#FECACA", amber: "#FDE68A", green: "#BBF7D0"};
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -191,10 +190,11 @@ function renderNestedPivot(widget, rows) {
           const fmt = numberFormat(columnFormat(v.label));
           const text = val == null ? "—" : fmt(val);
           const bg = gradientFor(v.format, val);
-          // The gradient stays the same dark, saturated fill in both
-          // themes (see GRADIENT_COLORS above), so its cells need white
-          // text forced regardless of theme.
-          const style = bg ? `background:${bg};color:#ffffff` : "";
+          // The gradient stays light-pastel in both themes (see
+          // GRADIENT_COLORS above), so its cells need dark text forced
+          // regardless of theme -- otherwise dark mode's page-wide light
+          // text color would wash out against these light backgrounds.
+          const style = bg ? `background:${bg};color:#161616` : "";
           return html`<td style=${style}>${text}</td>`;
         })}
       </tr>`;
