@@ -217,10 +217,23 @@ function renderWidget(doc, widget, filterValues) {
       `;--tile-accent-dark:${style.accentDark};--tile-bg-dark:${style.bgDark};--tile-border-dark:${style.borderDark}`
     : "");
 
+  // Pivot tables carry a long explanatory paragraph (what's nested under
+  // what, how utilization is computed) -- collapsed by default and moved
+  // below the table, so the table itself is the first thing in view.
+  // Other widget types keep their description as a plain lede above the
+  // body, unchanged.
+  const isPivot = widget.type === "pivot_table";
+  const description = widget.description
+    ? isPivot
+      ? html`<details class="inv-card-details"><summary>About this table</summary><p class="inv-card-description">${widget.description}</p></details>`
+      : html`<p class="inv-card-description">${widget.description}</p>`
+    : null;
+
   return html`<section class="${cardClass}" style="${cardStyle}" data-widget=${widget.id}>
     <h3 class="inv-card-title">${group ? groupIcon(group) : null}${widget.name}</h3>
-    ${widget.description ? html`<p class="inv-card-description">${widget.description}</p>` : null}
+    ${isPivot ? null : description}
     ${body}
+    ${isPivot ? description : null}
   </section>`;
 }
 

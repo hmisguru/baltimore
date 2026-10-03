@@ -45,6 +45,13 @@ html[data-theme="dark"] .inv-card-icon { color: var(--tile-accent-dark); }
 .inv-card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--inv-deep); max-width: none; }
 .inv-card-icon { width: 18px; height: 18px; flex: none; color: var(--tile-accent); }
 .inv-card-description { margin: 0 0 10px; font-size: 13px; color: var(--inv-muted); max-width: none; }
+/* Pivot tables' explanatory text, collapsed below the table (see isPivot
+   in inventory.js's renderWidget) -- a native disclosure, no JS needed. */
+.inv-card-details { margin-top: 10px; }
+.inv-card-details > summary { font-size: 13px; font-weight: 600; color: var(--inv-purple); cursor: pointer; list-style: revert; }
+.inv-card-details > summary:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .inv-card-details > summary:focus-visible { outline-color: var(--inv-gold); }
+.inv-card-details > .inv-card-description { margin: 8px 0 0; }
 .inv-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
 .inv-metric-text { font-size: 18px; font-weight: 600; line-height: 1.4; color: #161616; }
 html[data-theme="dark"] .inv-metric, html[data-theme="dark"] .inv-metric-text { color: #ffffff; }
