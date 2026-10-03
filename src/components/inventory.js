@@ -167,6 +167,15 @@ function sortByOrder(keys, order) {
   });
 }
 
+// DV badge: flags a project-name row as targeting survivors of domestic
+// violence (Project.csv TargetPopulation = 1, see dv_project_names() in
+// inventory.json.py). A fixed-color pill in both themes, like a status
+// chip rather than a themed categorical tile -- text + title carry the
+// meaning, color is never the only signal.
+function dvBadge() {
+  return html`<span class="inv-dv-badge" title="Targets survivors of domestic violence">DV</span>`;
+}
+
 // Nested-row pivot: two row levels (no column dimension), one column per
 // `pivot.values[]` entry. The outer level's value is shown once per group
 // via rowspan; each value column's own `columns[]` number format and
@@ -174,7 +183,7 @@ function sortByOrder(keys, order) {
 // cell. The underlying queries already pre-aggregate to this exact
 // (outer, inner) grain, so this is a pure layout transform, not a
 // client-side re-aggregation.
-function renderNestedPivot(widget, rows) {
+function renderNestedPivot(widget, rows, dvProjects) {
   if (!rows.length) return empty();
   const [outerSpec, innerSpec] = widget.pivot.rows;
   const outerField = outerSpec.field, innerField = innerSpec.field;
@@ -190,6 +199,7 @@ function renderNestedPivot(widget, rows) {
     inner: sortByOrder(uniq(rows.filter((r) => r[outerField] === ok), innerField), innerOrder)
   }));
   const cellRow = (ok, ik) => rows.find((r) => r[outerField] === ok && r[innerField] === ik);
+  const isDV = (ik) => innerField === "project_name" && dvProjects.has(ik);
 
   return html`<div class="inv-table-wrap"><table class="inv-table">
     <thead><tr>
@@ -200,7 +210,7 @@ function renderNestedPivot(widget, rows) {
       const r = cellRow(key, ik);
       return html`<tr>
         ${i === 0 ? html`<th scope="row" rowspan=${inner.length}>${key}</th>` : null}
-        <th scope="row">${ik}</th>
+        <th scope="row">${ik}${isDV(ik) ? dvBadge() : null}</th>
         ${valueSpecs.map((v) => {
           const val = r?.[v.field];
           const fmt = numberFormat(columnFormat(v.label));
@@ -222,7 +232,7 @@ function renderWidget(doc, widget, filterValues) {
   const rows = widgetRows(doc, widget, filterValues);
   let body;
   if (widget.type === "metric") body = renderMetric(widget, rows);
-  else if (widget.type === "pivot_table") body = renderNestedPivot(widget, rows);
+  else if (widget.type === "pivot_table") body = renderNestedPivot(widget, rows, new Set(doc.dvProjects ?? []));
   else body = html`<p class="inv-empty">Unsupported widget type: ${widget.type}</p>`;
 
   const group = HOUSING_GROUPS[widget.name];
