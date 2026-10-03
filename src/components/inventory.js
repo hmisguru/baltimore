@@ -61,6 +61,22 @@ const HOUSING_GROUPS = {
   "Other Permanent Housing Beds": "permanent",
 };
 
+// Display-only title override, per explicit request -- balinventory.yml's
+// own `name` field stays a verbatim copy of DAC's source (per CLAUDE.md),
+// so this only renames what's rendered. Also swapped into any widget's
+// description text (e.g. the second pivot table's own description refers
+// back to the first one by name), so the cross-reference stays consistent.
+const TITLE_OVERRIDES = {"Current Inventory by Project Type": "Current Inventory by Household Type"};
+
+function displayTitle(name) {
+  return TITLE_OVERRIDES[name] ?? name;
+}
+
+function displayText(text) {
+  if (!text) return text;
+  return Object.entries(TITLE_OVERRIDES).reduce((out, [from, to]) => out.split(from).join(to), text);
+}
+
 // Dark variants use this site's own dark accent steps (dataviz skill
 // reference palette) at the card-surface-blended tints kpi.js's own
 // data-theme="dark" surface (#2f1c3d) already establishes for this site --
@@ -217,10 +233,23 @@ function renderWidget(doc, widget, filterValues) {
       `;--tile-accent-dark:${style.accentDark};--tile-bg-dark:${style.bgDark};--tile-border-dark:${style.borderDark}`
     : "");
 
+  // Pivot tables carry a long explanatory paragraph (what's nested under
+  // what, how utilization is computed) -- collapsed by default and moved
+  // below the table, so the table itself is the first thing in view.
+  // Other widget types keep their description as a plain lede above the
+  // body, unchanged.
+  const isPivot = widget.type === "pivot_table";
+  const description = widget.description
+    ? isPivot
+      ? html`<details class="inv-card-details"><summary>About this table</summary><p class="inv-card-description">${displayText(widget.description)}</p></details>`
+      : html`<p class="inv-card-description">${displayText(widget.description)}</p>`
+    : null;
+
   return html`<section class="${cardClass}" style="${cardStyle}" data-widget=${widget.id}>
-    <h3 class="inv-card-title">${group ? groupIcon(group) : null}${widget.name}</h3>
-    ${widget.description ? html`<p class="inv-card-description">${widget.description}</p>` : null}
+    <h3 class="inv-card-title">${group ? groupIcon(group) : null}${displayTitle(widget.name)}</h3>
+    ${isPivot ? null : description}
     ${body}
+    ${isPivot ? description : null}
   </section>`;
 }
 
