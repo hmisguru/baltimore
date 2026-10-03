@@ -45,6 +45,46 @@ function renderMetric(widget, rows) {
   return html`<div class="inv-metric${type === "number" ? "" : " inv-metric-text"}">${text}</div>`;
 }
 
+// Groups the 6 bed-count tiles by where they sit on the housing continuum --
+// per explicit request, a categorical grouping with no good/bad judgment
+// attached, so these reuse this site's validated categorical hues (the same
+// blue/orange/aqua triple bridge.js's System Engagement tiles already use,
+// for visual consistency across the site) rather than a status palette.
+// "Methodology" isn't part of this grouping and keeps its neutral gold
+// accent (see .inv-card-metric in inventory.css).
+const HOUSING_GROUPS = {
+  "Emergency Shelter Beds": "crisis",
+  "Safe Haven Beds": "crisis",
+  "Transitional Housing Beds": "bridge",
+  "Rapid Re-Housing Beds": "bridge",
+  "Permanent Supportive Housing Beds": "permanent",
+  "Other Permanent Housing Beds": "permanent",
+};
+
+const GROUP_STYLE = {
+  crisis: {accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed", label: "Crisis housing"},
+  bridge: {accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6", label: "Bridge housing"},
+  permanent: {accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9", label: "Permanent housing"},
+};
+
+// Minimal line icons (stroke-based, 1.75px, round caps -- one shared family),
+// purely decorative reinforcement of the group label already in the tile
+// title, so each is aria-hidden rather than needing its own alt text.
+const GROUP_ICONS = {
+  crisis: `<path d="M2 17v3M2 17v-5a2 2 0 0 1 2-2h4v4"/><path d="M2 17h20v-3a2 2 0 0 0-2-2h-9"/><path d="M22 17v3"/><rect x="4" y="10" width="5" height="4" rx="1"/>`,
+  bridge: `<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>`,
+  permanent: `<path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5"/>`,
+};
+
+function groupIcon(group) {
+  const path = GROUP_ICONS[group];
+  if (!path) return null;
+  const svg = `<svg class="inv-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+  const span = document.createElement("span");
+  span.innerHTML = svg;
+  return span.firstChild;
+}
+
 // Gradient cell backgrounds: DAC's conditional-format "no if" layer
 // (backgroundColor: a list of named colors, range: the value at each
 // stop, unit: absolute -- the range values ARE the raw data values, not
@@ -151,8 +191,13 @@ function renderWidget(doc, widget, filterValues) {
   else if (widget.type === "pivot_table") body = renderNestedPivot(widget, rows);
   else body = html`<p class="inv-empty">Unsupported widget type: ${widget.type}</p>`;
 
-  return html`<section class="inv-card${widget.type === "metric" ? " inv-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
-    <h3 class="inv-card-title">${widget.name}</h3>
+  const group = HOUSING_GROUPS[widget.name];
+  const style = group ? GROUP_STYLE[group] : null;
+  const cardClass = `inv-card${widget.type === "metric" ? " inv-card-metric" : ""}${group ? " inv-card-housing" : ""}`;
+  const cardStyle = `--span:${widget.col ?? 12}` + (style ? `;--tile-accent:${style.accent};--tile-bg:${style.bg};--tile-border:${style.border}` : "");
+
+  return html`<section class="${cardClass}" style="${cardStyle}" data-widget=${widget.id}>
+    <h3 class="inv-card-title">${group ? groupIcon(group) : null}${widget.name}</h3>
     ${widget.description ? html`<p class="inv-card-description">${widget.description}</p>` : null}
     ${body}
   </section>`;
