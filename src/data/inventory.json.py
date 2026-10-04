@@ -26,12 +26,13 @@ Coordinated Entry section for that pipeline) for the non-HMIS-participating
 fallback rate. No Google Sheets/Drive involvement, so this loader only needs
 the plain `bigquery` OAuth scope, like coordinated-entry.json.py.
 
-Also writes a top-level `dvProjects` list (project names with Project.csv's
-TargetPopulation = 1, i.e. domestic-violence-survivor-targeted) alongside the
-widget data, so src/components/inventory.js can badge those rows in the
-"Current Inventory by Project" table -- a one-off query outside
-balinventory.yml's own widgets, since that file stays a verbatim copy of
-DAC's source (see CLAUDE.md).
+Also writes top-level `dvProjects`/`vetsProjects`/`youthProjects` lists
+(project names matching Project.csv's TargetPopulation = 1, or with ACTIVE
+Inventory.csv VetBedInventory/YouthBedInventory > 0) alongside the widget
+data, so src/components/inventory.js can badge those rows in the "Current
+Inventory by Project" table -- one-off queries outside balinventory.yml's
+own widgets, since that file stays a verbatim copy of DAC's source (see
+CLAUDE.md).
 """
 
 import hashlib
@@ -87,6 +88,37 @@ def dv_project_names():
     return sorted({row[name_col] for row in result["rows"]})
 
 
+def active_population_project_names():
+    """Names of projects with ACTIVE bed inventory dedicated to veterans or
+    youth (HUD's Inventory.csv VetBedInventory/YouthBedInventory > 0), for
+    the Vets/Youth badges (src/components/inventory.js). "Active" means its
+    InventoryStartDate/InventoryEndDate span covers the HMIS export's own
+    as-of date (MAX(ExportEndDate) from balhmiscsv.Export) -- the same
+    "active inventory" window balinventory.yml's own widgets use throughout
+    (e.g. every inventory_bed_nights CTE's own date-range join condition).
+    Matched by name, same convention as dv_project_names() above."""
+    export_end = run("SELECT MAX(ExportEndDate) AS d FROM balhmiscsv.Export")["rows"][0][0]
+    result = run(f"""
+        SELECT DISTINCT p.ProjectName,
+          COALESCE(i.VetBedInventory, 0) > 0 AS vets,
+          COALESCE(i.YouthBedInventory, 0) > 0 AS youth
+        FROM balhmiscsv.Inventory i
+        JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
+        WHERE i.InventoryStartDate <= DATE '{export_end}'
+          AND (i.InventoryEndDate IS NULL OR i.InventoryEndDate >= DATE '{export_end}')
+          AND (COALESCE(i.VetBedInventory, 0) > 0 OR COALESCE(i.YouthBedInventory, 0) > 0)
+    """)
+    cols = result["columns"]
+    name_i, vets_i, youth_i = cols.index("ProjectName"), cols.index("vets"), cols.index("youth")
+    vets, youth = set(), set()
+    for row in result["rows"]:
+        if row[vets_i]:
+            vets.add(row[name_i])
+        if row[youth_i]:
+            youth.add(row[name_i])
+    return sorted(vets), sorted(youth)
+
+
 def main():
     dashboard = yaml.safe_load(DASHBOARD.read_text())
     filters = [
@@ -135,6 +167,8 @@ def main():
     with ThreadPoolExecutor(max_workers=8) as pool:
         data = dict(zip(queries, pool.map(run, queries.values())))
 
+    vets_projects, youth_projects = active_population_project_names()
+
     json.dump(
         {
             "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -145,6 +179,8 @@ def main():
             "results": results,
             "data": data,
             "dvProjects": dv_project_names(),
+            "vetsProjects": vets_projects,
+            "youthProjects": youth_projects,
         },
         sys.stdout,
         separators=(",", ":"),
