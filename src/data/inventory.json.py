@@ -25,6 +25,13 @@ plain BigQuery, kept fresh by the ClientTrack CTAPI sync -- see CLAUDE.md's
 Coordinated Entry section for that pipeline) for the non-HMIS-participating
 fallback rate. No Google Sheets/Drive involvement, so this loader only needs
 the plain `bigquery` OAuth scope, like coordinated-entry.json.py.
+
+Also writes a top-level `dvProjects` list (project names with Project.csv's
+TargetPopulation = 1, i.e. domestic-violence-survivor-targeted) alongside the
+widget data, so src/components/inventory.js can badge those rows in the
+"Current Inventory by Project" table -- a one-off query outside
+balinventory.yml's own widgets, since that file stays a verbatim copy of
+DAC's source (see CLAUDE.md).
 """
 
 import hashlib
@@ -66,6 +73,18 @@ def run(sql):
         "columns": [field.name for field in result.schema],
         "rows": [[json_value(v) for v in row.values()] for row in result],
     }
+
+
+def dv_project_names():
+    """Names of projects targeting survivors of domestic violence (HUD's
+    Project.csv TargetPopulation = 1), for the "Current Inventory by
+    Project" table's DV badge (src/components/inventory.js). Matched by
+    name rather than ProjectID since that table's own query (balinventory.yml,
+    not touched here) already groups down to (project_type_label,
+    project_name) with no ProjectID in its result."""
+    result = run("SELECT DISTINCT ProjectName FROM balhmiscsv.Project WHERE TargetPopulation = 1")
+    name_col = result["columns"].index("ProjectName")
+    return sorted({row[name_col] for row in result["rows"]})
 
 
 def main():
@@ -125,6 +144,7 @@ def main():
             "rows": rows_out,
             "results": results,
             "data": data,
+            "dvProjects": dv_project_names(),
         },
         sys.stdout,
         separators=(",", ":"),

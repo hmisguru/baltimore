@@ -63,6 +63,25 @@ html[data-theme="dark"] .inv-metric, html[data-theme="dark"] .inv-metric-text { 
 .inv-table td { padding: 6px 10px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; text-align: right; }
 html[data-theme="dark"] .inv-table td { border-bottom-color: #4a3659; color: #ffffff; }
 .inv-table tbody tr:last-child td { border-bottom: 0; }
+/* DV badge (see dvBadge() in inventory.js) -- a fixed-color pill in both
+   themes, like a status chip rather than a themed categorical tile, so it
+   stays equally visible regardless of the page's light/dark state. Violet
+   (not reused for any other role on this page) with white text clears
+   8.5:1 contrast; the "DV" text plus title tooltip carry the meaning, not
+   color alone. */
+.inv-dv-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #4a3aa7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  cursor: default;
+}
 .inv-footnote { font-size: 13px; color: var(--inv-muted); max-width: none; }
 
 /* Theme toggle -- a plain pill button whose own label text swaps between
