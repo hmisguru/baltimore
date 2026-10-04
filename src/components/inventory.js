@@ -279,11 +279,14 @@ function renderWidget(doc, widget, filterValues) {
   // what, how utilization is computed) -- collapsed by default and moved
   // below the table, so the table itself is the first thing in view.
   // Other widget types keep their description as a plain lede above the
-  // body, unchanged.
+  // body, unchanged. "About this data" (not "About this table") since the
+  // dashboard-collapsible-description skill generalizes this beyond
+  // tables -- kept generic here too, for consistency with that skill's
+  // documented default.
   const isPivot = widget.type === "pivot_table";
   const description = widget.description
     ? isPivot
-      ? html`<details class="inv-card-details"><summary>About this table</summary><p class="inv-card-description">${displayText(widget.description)}</p></details>`
+      ? html`<details class="inv-card-details"><summary>About this data</summary><p class="inv-card-description">${displayText(widget.description)}</p></details>`
       : html`<p class="inv-card-description">${displayText(widget.description)}</p>`
     : null;
 
