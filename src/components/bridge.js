@@ -11,9 +11,15 @@ import * as Inputs from "npm:@observablehq/inputs";
 import {hierarchy, treemap as d3treemap} from "npm:d3-hierarchy";
 import {resize} from "observablehq:stdlib";
 
-// Validated categorical palette (dataviz skill reference instance, light mode):
-// assigned in this fixed order, never cycled.
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+// Validated categorical palette (dataviz skill reference instance), assigned
+// in this fixed order, never cycled. Each slot is a CSS custom property
+// rather than a raw hex so Plot's SVG output (which resolves var() in
+// presentation attributes, same as any other CSS color) and the legend's
+// own swatches both pick up the dark-mode step automatically -- bridge.css
+// defines --series-1..8 for light mode and redefines them under
+// html[data-theme="dark"] to the palette's dark steps, so toggling the
+// theme recolors every chart with no re-render needed.
+const SERIES = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--series-${n})`);
 
 /** The widget's result for the chosen filters, as an array of row objects. */
 export function widgetRows(bridge, widget, filterValues) {
@@ -233,7 +239,14 @@ const COMPARE = {
   less_than: (a, b) => a < b,
   equal: (a, b) => a === b
 };
-const STATUS_COLORS = {green: "#0a6e0a", red: "#b3261e"};
+// Fixed in both themes, like inventory.js's POPULATION_BADGES -- white text
+// on a solid fill reads fine regardless of page background, so these never
+// need a dark variant. "neutral" is a plain mid-gray (not the --bridge-muted
+// token, which flips to a LIGHT lavender in dark mode -- using that token as
+// a background instead of its intended text-color role would turn this
+// pill's forced-white text unreadable there) for trendPill()'s "about the
+// same" case below.
+const STATUS_COLORS = {green: "#0a6e0a", red: "#b3261e", neutral: "#52525b"};
 
 function styleFor(rules, v) {
   for (const rule of rules ?? []) {
@@ -295,7 +308,7 @@ function trendPill(trendWidget, trendRows) {
   const avg = numberFormat("number")(rolling_avg_4q);
   const change = pct_of_average - 1;
   if (Math.abs(change) < NEGLIGIBLE_CHANGE) {
-    return html`<p class="bridge-exits-pill" style="background:var(--bridge-muted)">≈ About the ${avg} average</p>`;
+    return html`<p class="bridge-exits-pill" style="background:${STATUS_COLORS.neutral}">≈ About the ${avg} average</p>`;
   }
   const above = change > 0;
   const pct = d3format(".1%")(Math.abs(change));
@@ -367,28 +380,39 @@ function renderWidget(bridge, widget, filterValues) {
 // newly homeless, recurring, or returning is the improvement -- the
 // opposite polarity from the Positive Outcomes exits tile, where *above*
 // average (more exits to permanent housing) is good.
+// Dark variants follow inventory.js's own GROUP_STYLE recipe: each
+// accentDark is the dataviz skill's dark categorical step for that same
+// hue, and bgDark/borderDark are that accentDark alpha-blended over kpi.js's
+// dark surface (#2f1c3d) at 16% (bg) / 37.5% (border) -- the exact ratios
+// inventory.js's own crisis/bridge/permanent trio already use, solved from
+// their shipped hex values and reapplied here for Returned's amber, which
+// inventory.js never needed.
 const ENGAGEMENT_STATES = [
   {
     label: "Established",
     accent: "#2a78d6", bg: "#ebf2f9", border: "#b6cfed",
+    accentDark: "#3987e5", bgDark: "#312d58", borderDark: "#33457d",
     definition: "Continuously homeless since a prior report period — doesn't fit the other three states.",
     trendWidget: "Established — Trend"
   },
   {
     label: "New",
     accent: "#eb6834", bg: "#f9efeb", border: "#edc5b6",
+    accentDark: "#d95926", bgDark: "#4a2639", borderDark: "#703334",
     definition: "First-time entry into the system, with no enrollment in the two years prior.",
     trendWidget: "New — Trend"
   },
   {
     label: "Recurring",
     accent: "#1baf7a", bg: "#ebf9f4", border: "#b6edd9",
+    accentDark: "#199e70", bgDark: "#2b3145", borderDark: "#274d50",
     definition: "Re-entered the system 15–730 days after a temporary or unknown-destination exit.",
     trendWidget: "Recurring — Trend"
   },
   {
     label: "Returned",
     accent: "#eda100", bg: "#f9f5eb", border: "#eddbb6",
+    accentDark: "#c98500", bgDark: "#482d33", borderDark: "#694326",
     definition: "Re-entered the system 15–730 days after a permanent-housing exit.",
     // Folds in "Returns After Permanent Placement" + its trend table, moved
     // here from Positive Outcomes -- the household count above is already
@@ -422,7 +446,7 @@ function renderEngagementLegend(bridge, rows, filterValues) {
       ? html`<p class="bridge-legend-stat">${total} <span>${s.label} Households</span></p>`
       : html`<p class="bridge-legend-title"><span class="bridge-legend-dot"></span>${s.label}</p>`;
     return html`
-    <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent}">
+    <div class="bridge-legend-tile" style="--tile-bg:${s.bg};--tile-border:${s.border};--tile-accent:${s.accent};--tile-bg-dark:${s.bgDark};--tile-border-dark:${s.borderDark};--tile-accent-dark:${s.accentDark}">
       ${heading}
       ${pill}
       <p>${s.definition}</p>
@@ -570,4 +594,55 @@ const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZon
 export function renderFootnote(bridge) {
   const source = bridge.source_modified ? `Source data last updated ${eastern(bridge.source_modified, {dateStyle: "medium"})} · ` : "";
   return html`<p class="bridge-footnote">${source}Dashboard refreshed ${eastern(bridge.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`;
+}
+
+const THEME_KEY = "bridge-theme";
+
+function storedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+// Sets the [data-theme] attribute bridge.css styles against, persisting the
+// choice via localStorage -- the main /bridge/ page's toggle only; the embed
+// page sets document.documentElement.dataset.theme directly from its own
+// ?theme= param instead (see embed/bridge.md), since that localStorage write
+// is shared with /bridge/ (same origin, even framed on someone else's site)
+// and an embed's theme shouldn't leak into the main page's own remembered
+// preference.
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Private browsing / blocked storage: theme still applies for this page view.
+  }
+}
+
+/** A light/dark theme toggle button, default light -- see bridge.css for the
+ * [data-theme] styling this drives on <html>. Remembers the visitor's choice
+ * via localStorage, but every first-ever visit starts light. A plain button
+ * whose own label swaps between "🌙 Dark mode" and "☀️ Light mode", matching
+ * the Inventory dashboard's toggle -- not a switch. */
+export function renderThemeToggle() {
+  const theme = storedTheme() === "dark" ? "dark" : "light";
+  applyTheme(theme);
+
+  // aria-pressed set via setAttribute, not template interpolation -- htl
+  // treats an interpolated boolean as a presence-only attribute, rendering
+  // an empty aria-pressed="" instead of "true"/"false" (confirmed live on
+  // the Inventory dashboard's own toggle).
+  const label = (t) => (t === "dark" ? "☀️ Light mode" : "🌙 Dark mode");
+  const button = html`<button type="button" class="bridge-theme-toggle">${label(theme)}</button>`;
+  button.setAttribute("aria-pressed", String(theme === "dark"));
+  button.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    button.setAttribute("aria-pressed", String(next === "dark"));
+    button.textContent = label(next);
+  });
+  return button;
 }

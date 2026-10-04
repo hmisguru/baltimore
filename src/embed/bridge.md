@@ -15,6 +15,18 @@ const bridge = FileAttachment("../data/bridge.json").json();
 ```
 
 ```js
+// ?theme=dark overrides the embed's light default -- same convention as the
+// KPI iframes' own ?theme= param (src/embed/[kpi].md). Sets the attribute
+// directly rather than calling bridge.js's applyTheme(): that helper also
+// writes localStorage, which is shared with /bridge/ (same origin, even
+// when this page is framed on someone else's site) -- an embed's theme is
+// the host page's call for that one view, not something that should leak
+// into the main page's own remembered preference next time someone visits
+// it directly.
+document.documentElement.dataset.theme = new URLSearchParams(location.search).get("theme") === "dark" ? "dark" : "light";
+```
+
+```js
 display(renderAbout(bridge));
 ```
 

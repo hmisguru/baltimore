@@ -6,7 +6,7 @@ toc: false
 <link rel="stylesheet" href="../components/bridge.css">
 
 ```js
-import {bridgeInputs, renderAbout, renderFootnote, renderTab} from "../components/bridge.js";
+import {bridgeInputs, renderAbout, renderFootnote, renderTab, renderThemeToggle} from "../components/bridge.js";
 const bridge = FileAttachment("../data/bridge.json").json();
 ```
 
@@ -15,6 +15,10 @@ const bridge = FileAttachment("../data/bridge.json").json();
   <h1>${bridge.name}</h1>
   <p class="bridge-lede">${bridge.description}</p>
 </div>
+
+```js
+display(renderThemeToggle());
+```
 
 ```js
 display(renderAbout(bridge));

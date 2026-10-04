@@ -1,5 +1,42 @@
 /* Bridge to Housing dashboard styles, shared by /bridge/ and /embed/bridge. */
-:root { --bridge-purple: #60397c; --bridge-deep: #2f1c3d; --bridge-gold: #fabe21; --bridge-surface: #f4fafb; --bridge-border: #d9e7ea; --bridge-muted: #4f4a57; }
+:root {
+  --bridge-purple: #60397c; --bridge-deep: #2f1c3d; --bridge-gold: #fabe21;
+  --bridge-surface: #f4fafb; --bridge-border: #d9e7ea; --bridge-muted: #4f4a57;
+  /* Validated categorical palette (dataviz skill reference instance, light
+     steps), referenced by SERIES in bridge.js -- never raw hex in chart
+     code, so the html[data-theme="dark"] block below can swap every chart's
+     colors with no re-render. */
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+}
+
+/* Light/dark toggle, default light -- user-controlled (not OS-driven), via a
+   [data-theme] attribute set on <html> by renderThemeToggle()/applyTheme()
+   in bridge.js. Overriding Framework's own --theme-foreground/
+   --theme-background-* custom properties here flips the page background,
+   text, and link color for free (including every .bridge-table cell, which
+   sets no color of its own and just inherits it); redefining this file's
+   own --bridge- and --series- custom properties at this same scope recolors
+   every element and chart that already references them, so only the
+   hardcoded-hex rules below (.bridge-note/.bridge-about, .bridge-metric,
+   .bridge-table's hairline) need an explicit dark variant. Surface/text
+   tokens and the --series-* dark steps match inventory.css's own
+   data-theme="dark" variant exactly, for visual consistency across the
+   site's dashboards. */
+html[data-theme="dark"] {
+  --bridge-purple: #d9cfe3;
+  --bridge-deep: #ffffff;
+  --bridge-surface: #2f1c3d;
+  --bridge-border: #4a3659;
+  --bridge-muted: #c3b8d1;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  --theme-foreground: #ffffff;
+  --theme-background-a: #1f1428;
+  --theme-background-b: #1f1428;
+  --theme-foreground-focus: #fabe21;
+  color-scheme: dark;
+}
 #observablehq-main { max-width: 1280px; }
 .bridge-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
 .bridge-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bridge-purple); }
@@ -17,8 +54,10 @@
 .bridge-card { grid-column: span var(--span); min-width: 0; padding: 16px 20px; background: var(--bridge-surface); border: 1px solid var(--bridge-border); border-radius: 12px; }
 .bridge-card-metric { border-top: 4px solid var(--bridge-gold); }
 .bridge-note { background: #f3eef9; border-color: #e0d4ee; }
+html[data-theme="dark"] .bridge-note { background: #3d2059; border-color: #502680; }
 .bridge-card-title { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--bridge-deep); max-width: none; }
 .bridge-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
+html[data-theme="dark"] .bridge-metric { color: #ffffff; }
 .bridge-metric-text { font-size: 24px; }
 .bridge-text p:first-child, .bridge-text h3:first-child { margin-top: 0; }
 .bridge-text p:last-child { margin-bottom: 0; }
@@ -28,8 +67,10 @@
 .bridge-table { width: 100%; max-width: none; font-size: 14px; border-collapse: collapse; }
 .bridge-table th { vertical-align: bottom; font-size: 13px; padding: 4px 8px; border-bottom: 1px solid var(--bridge-border); }
 .bridge-table td { padding: 4px 8px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .bridge-table td { border-bottom-color: #4a3659; }
 .bridge-table tbody tr:last-child td { border-bottom: 0; }
 .bridge-about { margin: 0 0 20px; padding: 16px 20px; background: #f3eef9; border: 1px solid #e0d4ee; border-left: 4px solid var(--bridge-purple); border-radius: 12px; }
+html[data-theme="dark"] .bridge-about { background: #3d2059; border-color: #502680; border-left-color: var(--bridge-purple); }
 .bridge-about-note + .bridge-about-note { margin-top: 12px; }
 .bridge-about p { max-width: none; }
 .bridge-about-intro p { font-size: 16px; }
@@ -48,10 +89,13 @@
    distinct, identifiable color -- same pattern .bridge-about already uses. */
 .bridge-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .bridge-legend-tile { padding: 12px 14px; border-radius: 12px; background: var(--tile-bg); border: 1px solid var(--tile-border); border-left: 4px solid var(--tile-accent); }
+html[data-theme="dark"] .bridge-legend-tile { background: var(--tile-bg-dark); border-color: var(--tile-border-dark); border-left-color: var(--tile-accent-dark); }
 .bridge-legend-title { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--bridge-deep); }
 .bridge-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tile-accent); flex: none; }
+html[data-theme="dark"] .bridge-legend-dot { background: var(--tile-accent-dark); }
 .bridge-legend-tile p { margin: 0; font-size: 13px; color: var(--bridge-muted); }
 .bridge-legend-stat { font-size: 22px; font-weight: 700; line-height: 1.1; color: #161616; margin: 2px 0 6px !important; font-variant-numeric: tabular-nums; }
+html[data-theme="dark"] .bridge-legend-stat { color: #ffffff; }
 .bridge-legend-stat span { font-size: 13px; font-weight: 600; color: var(--bridge-muted); }
 /* Positive Outcomes' "Households Exiting to Permanent Housing" tile: reuses
    STATUS_COLORS (#0a6e0a green / #b3261e red, white text ~6.5:1 contrast --
@@ -66,6 +110,37 @@
    otherwise flatten its spacing and overwrite its white text with the
    tile's muted ink. Restated here at matching (two-class) specificity. */
 .bridge-legend-tile .bridge-exits-pill { margin: 8px 0; color: #fff; }
+
+/* Theme toggle -- a plain pill button whose own label text swaps between
+   "Dark mode"/"Light mode" (not a switch), matching the Inventory
+   dashboard's toggle exactly. Colors match kpi.js's dark-mode tokens (deep
+   purple surface, gold accent). Only present on /bridge/ -- /embed/bridge
+   applies a theme from its own ?theme= param instead (see bridge.js's
+   applyTheme()), since a visible toggle inside an embedded iframe would
+   duplicate a control the host page already owns. */
+.bridge-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--bridge-border);
+  border-radius: 999px;
+  background: var(--bridge-surface);
+  color: var(--bridge-deep);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.bridge-theme-toggle:hover { border-color: var(--bridge-purple); }
+html[data-theme="dark"] .bridge-theme-toggle:hover { border-color: var(--bridge-gold); }
+.bridge-theme-toggle:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .bridge-theme-toggle:focus-visible { outline-color: var(--bridge-gold); }
+@media (prefers-reduced-motion: reduce) {
+  .bridge-theme-toggle { transition: none; }
+}
+
 @media (max-width: 760px) {
   .bridge-row { grid-template-columns: 1fr; }
   .bridge-card { grid-column: 1 / -1; }
