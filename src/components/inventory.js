@@ -117,24 +117,28 @@ function groupIcon(group) {
 // Gradient cell backgrounds: DAC's conditional-format "no if" layer
 // (backgroundColor: a list of named colors, range: the value at each
 // stop, unit: absolute -- the range values ARE the raw data values, not
-// percentiles). Deep, muted stops (brick red / amber-brown / forest
-// green, not pastel tints or stoplight-bright hues) paired with forced
-// white cell text below -- chosen to suit Baltimore City's purple/gold
-// branding while keeping the red-low/green-high status read. Every stop,
-// and the linear RGB mix between any two, clears 4.5:1 contrast against
-// white (red #B91C1C 6.47:1, amber #92400E 7.09:1, green #166534 7.13:1).
-const GRADIENT_COLORS = {red: "#B91C1C", amber: "#92400E", green: "#166534"};
+// percentiles). Per explicit request, light and dark mode use different
+// stops rather than one fixed set: light mode keeps the original pastel
+// tints (dark cell text) that match this dashboard's light, airy surface;
+// dark mode uses deep, muted tones (brick red / amber-brown / forest
+// green, white cell text) that suit Baltimore City's purple/gold branding
+// against the dark surface, where pastel would look washed out. Both keep
+// the same low=red/high=green status read. The dark set's every stop, and
+// the linear RGB mix between any two, clears 4.5:1 contrast against white
+// (red #B91C1C 6.47:1, amber #92400E 7.09:1, green #166534 7.13:1).
+const GRADIENT_COLORS_LIGHT = {red: "#FECACA", amber: "#FDE68A", green: "#BBF7D0"};
+const GRADIENT_COLORS_DARK = {red: "#B91C1C", amber: "#92400E", green: "#166534"};
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function gradientFor(formatLayers, value) {
+function gradientFor(formatLayers, value, palette) {
   const layer = (formatLayers ?? []).find((l) => !l.if && Array.isArray(l.backgroundColor));
   if (!layer || value == null) return null;
   const stops = layer.range ?? layer.backgroundColor.map((_, i) => i / (layer.backgroundColor.length - 1));
-  const colors = layer.backgroundColor.map((c) => GRADIENT_COLORS[c] ?? c);
+  const colors = layer.backgroundColor.map((c) => palette[c] ?? c);
   if (value <= stops[0]) return colors[0];
   if (value >= stops[stops.length - 1]) return colors[colors.length - 1];
   for (let i = 0; i < stops.length - 1; i++) {
@@ -233,12 +237,16 @@ function renderNestedPivot(widget, rows, badgeSets) {
           const val = r?.[v.field];
           const fmt = numberFormat(columnFormat(v.label));
           const text = val == null ? "—" : fmt(val);
-          const bg = gradientFor(v.format, val);
-          // The gradient stays the same deep, saturated fill in both
-          // themes (see GRADIENT_COLORS above), so its cells need white
-          // text forced regardless of theme.
-          const style = bg ? `background:${bg};color:#ffffff` : "";
-          return html`<td style=${style}>${text}</td>`;
+          const bgLight = gradientFor(v.format, val, GRADIENT_COLORS_LIGHT);
+          const bgDark = gradientFor(v.format, val, GRADIENT_COLORS_DARK);
+          // Both palettes' backgrounds are passed through as custom
+          // properties; inventory.css's .inv-grad-cell rule picks the
+          // light one, its html[data-theme="dark"] override picks the
+          // dark one (and switches the forced text color to match) --
+          // same convention as --tile-accent/--tile-accent-dark above.
+          const style = bgLight ? `--grad-bg:${bgLight};--grad-bg-dark:${bgDark}` : "";
+          const cls = bgLight ? "inv-grad-cell" : "";
+          return html`<td class="${cls}" style=${style}>${text}</td>`;
         })}
       </tr>`;
     }))}</tbody>
