@@ -6,7 +6,7 @@ toc: false
 <link rel="stylesheet" href="../components/coordinated-entry.css">
 
 ```js
-import {renderRows, renderFootnote} from "../components/coordinated-entry.js";
+import {renderRows, renderFootnote, renderThemeToggle} from "../components/coordinated-entry.js";
 const doc = FileAttachment("../data/coordinated-entry.json").json();
 ```
 
@@ -15,6 +15,10 @@ const doc = FileAttachment("../data/coordinated-entry.json").json();
   <h1>${doc.name}</h1>
   <p class="ce-lede">${doc.description}</p>
 </div>
+
+```js
+display(renderThemeToggle());
+```
 
 ```js
 display(renderRows(doc));
