@@ -63,6 +63,13 @@ html[data-theme="dark"] .inv-metric, html[data-theme="dark"] .inv-metric-text { 
 .inv-table td { padding: 6px 10px; border-bottom: 1px solid #e6eef0; font-variant-numeric: tabular-nums; text-align: right; }
 html[data-theme="dark"] .inv-table td { border-bottom-color: #4a3659; color: #ffffff; }
 .inv-table tbody tr:last-child td { border-bottom: 0; }
+/* Average Utilization gradient cells -- light mode keeps the original
+   pastel background with dark text; dark mode swaps to the deeper,
+   saturated background (--grad-bg-dark) with white text, since pastel
+   looks washed out against the dark surface. Both custom properties are
+   set inline per cell by gradientFor() in inventory.js. */
+.inv-grad-cell { background: var(--grad-bg); color: #161616; }
+html[data-theme="dark"] .inv-grad-cell { background: var(--grad-bg-dark); color: #ffffff; }
 /* Population badges (DV/Vets/Youth, see POPULATION_BADGES in inventory.js)
    -- fixed-color pills in both themes, like status chips rather than
    themed categorical tiles, so they stay equally visible regardless of
