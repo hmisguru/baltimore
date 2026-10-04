@@ -60,4 +60,4 @@ In the widget renderer (`renderWidget()` in `<name>.js`), decide per-widget whet
 
 ## Status
 
-Only applied to Inventory's two pivot tables so far — no request yet to apply it to Bridge or Coordinated Entry. Don't retrofit other dashboards speculatively; wait to be asked, same as `dashboard-dark-theme` was rolled out one dashboard at a time on request.
+Applied to Inventory (both pivot tables) and Coordinated Entry (the bar chart, both pies, and the pivot table — everything but its 3 metric tiles, which have no description at all). Not applied to Bridge yet — don't retrofit it speculatively; wait to be asked, same as `dashboard-dark-theme` was rolled out one dashboard at a time on request. Coordinated Entry confirmed the predicate generalizes beyond a single widget type (`type !== "metric"`, covering both `chart` and `pivot_table`), not just Inventory's pivot-table-only case.

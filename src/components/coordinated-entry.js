@@ -133,10 +133,24 @@ function renderWidget(doc, widget) {
   else if (widget.chart === "pie") body = renderPie(widget, rows);
   else body = html`<p class="ce-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
 
+  // Charts and the pivot table carry a real explanatory paragraph
+  // (field mappings, categorization rules, cross-references to other
+  // widgets) -- collapsed by default and moved below the widget, so the
+  // chart/table itself is the first thing in view. Metric tiles have no
+  // description at all in this dashboard's YAML, so the predicate never
+  // affects them either way.
+  const collapsed = widget.type === "chart" || widget.type === "pivot_table";
+  const description = widget.description
+    ? collapsed
+      ? html`<details class="ce-card-details"><summary>About this data</summary><p class="ce-card-description">${widget.description}</p></details>`
+      : html`<p class="ce-card-description">${widget.description}</p>`
+    : null;
+
   return html`<section class="ce-card${widget.type === "metric" ? " ce-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
     <h3 class="ce-card-title">${widget.name}</h3>
-    ${widget.description ? html`<p class="ce-card-description">${widget.description}</p>` : null}
+    ${collapsed ? null : description}
     ${body}
+    ${collapsed ? description : null}
   </section>`;
 }
 

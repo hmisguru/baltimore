@@ -43,6 +43,14 @@ html[data-theme="dark"] {
 .ce-card-metric { border-top: 4px solid var(--ce-gold); }
 .ce-card-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--ce-deep); max-width: none; }
 .ce-card-description { margin: 0 0 10px; font-size: 13px; color: var(--ce-muted); max-width: none; }
+/* Charts and the pivot table's explanatory text, collapsed below the
+   widget (see collapsed in coordinated-entry.js's renderWidget) -- a
+   native disclosure, no JS needed. */
+.ce-card-details { margin-top: 10px; }
+.ce-card-details > summary { font-size: 13px; font-weight: 600; color: var(--ce-purple); cursor: pointer; list-style: revert; }
+.ce-card-details > summary:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .ce-card-details > summary:focus-visible { outline-color: var(--ce-gold); }
+.ce-card-details > .ce-card-description { margin: 8px 0 0; }
 .ce-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
 html[data-theme="dark"] .ce-metric { color: #ffffff; }
 .ce-metric-text { font-size: 24px; }
