@@ -117,11 +117,13 @@ function groupIcon(group) {
 // Gradient cell backgrounds: DAC's conditional-format "no if" layer
 // (backgroundColor: a list of named colors, range: the value at each
 // stop, unit: absolute -- the range values ARE the raw data values, not
-// percentiles). Light pastel stops (not the saturated token names
-// themselves) so dark body text stays readable at every point along the
-// gradient, the same convention the create-dashboard skill's own gradient
-// example uses.
-const GRADIENT_COLORS = {red: "#FECACA", amber: "#FDE68A", green: "#BBF7D0"};
+// percentiles). Deep, muted stops (brick red / amber-brown / forest
+// green, not pastel tints or stoplight-bright hues) paired with forced
+// white cell text below -- chosen to suit Baltimore City's purple/gold
+// branding while keeping the red-low/green-high status read. Every stop,
+// and the linear RGB mix between any two, clears 4.5:1 contrast against
+// white (red #B91C1C 6.47:1, amber #92400E 7.09:1, green #166534 7.13:1).
+const GRADIENT_COLORS = {red: "#B91C1C", amber: "#92400E", green: "#166534"};
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -232,11 +234,10 @@ function renderNestedPivot(widget, rows, badgeSets) {
           const fmt = numberFormat(columnFormat(v.label));
           const text = val == null ? "—" : fmt(val);
           const bg = gradientFor(v.format, val);
-          // The gradient stays light-pastel in both themes (see
-          // GRADIENT_COLORS above), so its cells need dark text forced
-          // regardless of theme -- otherwise dark mode's page-wide light
-          // text color would wash out against these light backgrounds.
-          const style = bg ? `background:${bg};color:#161616` : "";
+          // The gradient stays the same deep, saturated fill in both
+          // themes (see GRADIENT_COLORS above), so its cells need white
+          // text forced regardless of theme.
+          const style = bg ? `background:${bg};color:#ffffff` : "";
           return html`<td style=${style}>${text}</td>`;
         })}
       </tr>`;
