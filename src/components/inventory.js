@@ -167,13 +167,27 @@ function sortByOrder(keys, order) {
   });
 }
 
-// DV badge: flags a project-name row as targeting survivors of domestic
-// violence (Project.csv TargetPopulation = 1, see dv_project_names() in
-// inventory.json.py). A fixed-color pill in both themes, like a status
-// chip rather than a themed categorical tile -- text + title carry the
-// meaning, color is never the only signal.
-function dvBadge() {
-  return html`<span class="inv-dv-badge" title="Targets survivors of domestic violence">DV</span>`;
+// Population badges: flag a project-name row as serving a specific
+// population with dedicated capacity (DV: Project.csv TargetPopulation = 1;
+// Vets/Youth: ACTIVE Inventory.csv VetBedInventory/YouthBedInventory > 0 --
+// see dv_project_names()/active_population_project_names() in
+// inventory.json.py). Each is a fixed-color pill in both themes, like a
+// status chip rather than a themed categorical tile -- text + title carry
+// the meaning, color is never the only signal. Colors are custom, not this
+// site's categorical palette slots already used elsewhere on this same
+// page (housing-continuum blue/orange/aqua, utilization gradient
+// red/amber/green) -- each still individually verified to clear 4.5:1
+// contrast against white text (violet #4a3aa7 8.55:1, blue #1d4ed8 6.70:1,
+// green #047857 5.48:1). Rendered in this fixed order when a project
+// carries more than one.
+const POPULATION_BADGES = [
+  {key: "dv", label: "DV", title: "Targets survivors of domestic violence", color: "#4a3aa7"},
+  {key: "vets", label: "Vets", title: "Has active dedicated veteran bed inventory", color: "#1d4ed8"},
+  {key: "youth", label: "Youth", title: "Has active dedicated youth bed inventory", color: "#047857"},
+];
+
+function populationBadge({label, title, color}) {
+  return html`<span class="inv-pop-badge" style="background:${color}" title=${title}>${label}</span>`;
 }
 
 // Nested-row pivot: two row levels (no column dimension), one column per
@@ -183,7 +197,7 @@ function dvBadge() {
 // cell. The underlying queries already pre-aggregate to this exact
 // (outer, inner) grain, so this is a pure layout transform, not a
 // client-side re-aggregation.
-function renderNestedPivot(widget, rows, dvProjects) {
+function renderNestedPivot(widget, rows, badgeSets) {
   if (!rows.length) return empty();
   const [outerSpec, innerSpec] = widget.pivot.rows;
   const outerField = outerSpec.field, innerField = innerSpec.field;
@@ -199,7 +213,9 @@ function renderNestedPivot(widget, rows, dvProjects) {
     inner: sortByOrder(uniq(rows.filter((r) => r[outerField] === ok), innerField), innerOrder)
   }));
   const cellRow = (ok, ik) => rows.find((r) => r[outerField] === ok && r[innerField] === ik);
-  const isDV = (ik) => innerField === "project_name" && dvProjects.has(ik);
+  const badgesFor = (ik) => innerField === "project_name"
+    ? POPULATION_BADGES.filter((b) => badgeSets[b.key].has(ik))
+    : [];
 
   return html`<div class="inv-table-wrap"><table class="inv-table">
     <thead><tr>
@@ -210,7 +226,7 @@ function renderNestedPivot(widget, rows, dvProjects) {
       const r = cellRow(key, ik);
       return html`<tr>
         ${i === 0 ? html`<th scope="row" rowspan=${inner.length}>${key}</th>` : null}
-        <th scope="row">${ik}${isDV(ik) ? dvBadge() : null}</th>
+        <th scope="row">${ik}${badgesFor(ik).map(populationBadge)}</th>
         ${valueSpecs.map((v) => {
           const val = r?.[v.field];
           const fmt = numberFormat(columnFormat(v.label));
@@ -232,7 +248,14 @@ function renderWidget(doc, widget, filterValues) {
   const rows = widgetRows(doc, widget, filterValues);
   let body;
   if (widget.type === "metric") body = renderMetric(widget, rows);
-  else if (widget.type === "pivot_table") body = renderNestedPivot(widget, rows, new Set(doc.dvProjects ?? []));
+  else if (widget.type === "pivot_table") {
+    const badgeSets = {
+      dv: new Set(doc.dvProjects ?? []),
+      vets: new Set(doc.vetsProjects ?? []),
+      youth: new Set(doc.youthProjects ?? []),
+    };
+    body = renderNestedPivot(widget, rows, badgeSets);
+  }
   else body = html`<p class="inv-empty">Unsupported widget type: ${widget.type}</p>`;
 
   const group = HOUSING_GROUPS[widget.name];
