@@ -11,9 +11,15 @@ import {format as d3format} from "npm:d3-format";
 import {html} from "npm:htl";
 import {resize} from "observablehq:stdlib";
 
-// Validated categorical palette (dataviz skill reference instance, light mode):
-// assigned in this fixed order, never cycled.
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+// Validated categorical palette (dataviz skill reference instance), assigned
+// in this fixed order, never cycled. Each slot is a CSS custom property
+// rather than a raw hex so Plot's SVG output (which resolves var() in
+// presentation attributes, same as any other CSS color) picks up the
+// dark-mode step automatically -- coordinated-entry.css defines
+// --series-1..8 for light mode and redefines them under
+// html[data-theme="dark"] to the palette's dark steps, so toggling the
+// theme recolors every chart with no re-render needed.
+const SERIES = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--series-${n})`);
 
 /** The widget's result as an array of row objects. */
 function widgetRows(doc, widget) {
@@ -144,4 +150,51 @@ const eastern = (iso, options) => new Date(iso).toLocaleString("en-US", {timeZon
 /** "Dashboard refreshed …", in Eastern time. */
 export function renderFootnote(doc) {
   return html`<p class="ce-footnote">Dashboard refreshed ${eastern(doc.generated, {dateStyle: "medium", timeStyle: "short"})}.</p>`;
+}
+
+const THEME_KEY = "ce-theme";
+
+function storedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Private browsing / blocked storage: theme still applies for this page view.
+  }
+}
+
+/** A light/dark theme toggle button, default light -- see
+ * coordinated-entry.css for the [data-theme] styling this drives on <html>.
+ * Remembers the visitor's choice via localStorage, but every first-ever
+ * visit starts light. A plain button whose own label swaps between
+ * "🌙 Dark mode" and "☀️ Light mode", matching Inventory/Bridge's toggle --
+ * not a switch. No embeddable variant of this dashboard exists yet, so
+ * there's no ?theme= URL-param path to wire up (see Bridge's embed page
+ * if one is ever added here). */
+export function renderThemeToggle() {
+  const theme = storedTheme() === "dark" ? "dark" : "light";
+  applyTheme(theme);
+
+  // aria-pressed set via setAttribute, not template interpolation -- htl
+  // treats an interpolated boolean as a presence-only attribute, rendering
+  // an empty aria-pressed="" instead of "true"/"false" (confirmed live on
+  // the Inventory dashboard's own toggle).
+  const label = (t) => (t === "dark" ? "☀️ Light mode" : "🌙 Dark mode");
+  const button = html`<button type="button" class="ce-theme-toggle">${label(theme)}</button>`;
+  button.setAttribute("aria-pressed", String(theme === "dark"));
+  button.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    button.setAttribute("aria-pressed", String(next === "dark"));
+    button.textContent = label(next);
+  });
+  return button;
 }

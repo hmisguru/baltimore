@@ -69,6 +69,6 @@ User-controlled, not OS-driven: a `[data-theme]` attribute on `<html>`, set by a
 - `src/components/inventory.js` / `inventory.css` / `src/inventory/index.md` — the original. Simplest case: no embed page, `GROUP_STYLE` for dual-tone tiles, `GRADIENT_COLORS_LIGHT`/`_DARK` for a conditional-format gradient, `POPULATION_BADGES` for fixed-identity pills.
 - `src/components/bridge.js` / `bridge.css` / `src/bridge/index.md` / `src/embed/bridge.md` — the retrofit this skill was extracted from. Adds: the `var(--series-N)` chart-color technique, the accent-blend formula (worked out backwards from Inventory's shipped values and reapplied to a 4th tile Inventory never needed), the embed page's `?theme=` handling, and the muted-token-as-background fix.
 
-## Still needs doing
+## Status
 
-`src/components/coordinated-entry.js`/`.css`/`src/coordinated-entry/index.md` has no dark theme yet (no embed page to worry about there). Follow this same procedure; it's the simplest of the three (no filters, no tabs), so it's a good next target and a good place to double-check this skill generalizes rather than being Inventory/Bridge-specific.
+All three dashboards have it: Inventory, Bridge, and Coordinated Entry (`src/components/coordinated-entry.js`/`.css`/`src/coordinated-entry/index.md`, `ce-theme` localStorage key). Coordinated Entry confirmed the procedure generalizes cleanly to a simpler dashboard with no embed page, no dual-tone tiles, and no conditional-format gradient -- just the toggle, the token block, and the `var(--series-N)` chart-color swap; step 3's audit found nothing else to fix there. The next new dashboard built on this site should get this from the start, per the standing CLAUDE.md rule, rather than being retrofitted after the fact.
