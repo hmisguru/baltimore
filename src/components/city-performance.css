@@ -45,6 +45,11 @@ html[data-theme="dark"] {
 .cpm-card-eyebrow { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cpm-purple); }
 .cpm-card-title { margin: 2px 0 10px; font-size: 17px; font-weight: 700; color: var(--cpm-deep); max-width: none; }
 
+/* Breathing room below the trend chart -- its own -35deg-rotated x-axis
+   labels (see marginBottom in renderTrendChart()) sit close to its own
+   bottom edge; this margin keeps them from crowding the table right below. */
+.cpm-chart { margin-bottom: 14px; }
+
 .cpm-stat-row { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
 .cpm-value { font-size: 36px; font-weight: 700; line-height: 1.1; color: var(--cpm-deep); }
 .cpm-value-unit { font-size: 16px; font-weight: 400; color: var(--cpm-muted); margin-left: 4px; }

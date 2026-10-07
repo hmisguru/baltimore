@@ -11,15 +11,19 @@
 --
 -- Three measures (FY27_Measures_and_Notes.xlsx, "Outreach to the Homeless"):
 --   8941 -- unduplicated count of clients with an active Street Outreach
---          (ProjectType = 4) enrollment at any point in the period. "Active"
---          here matches this repo's own Active-Clients convention used
+--          enrollment at any point in the period, in one of three specific
+--          SO projects only (so_projects below) -- per explicit request,
+--          not every ProjectType = 4 project CoC-wide. "Active" still
+--          matches this repo's own Active-Clients convention used
 --          throughout sql/m3_sheltered.sql etc (EntryDate <= period_end AND
 --          (no exit, or exit after period_start)) -- NOT the legacy report's
 --          own exact figures, which this new methodology is deliberately
 --          replacing; expect this count to differ from FY27_Measures_and_
 --          Notes.xlsx's historical values for that reason, not as an error.
---   8942 -- % of that same cohort who also have an active Coordinated Entry
---          (ProjectType = 14) enrollment in the same period.
+--   8942 -- % of that same (now project-scoped) cohort who also have an
+--          active Coordinated Entry (ProjectType = 14, still CoC-wide --
+--          only the Street Outreach side is scoped) enrollment in the same
+--          period.
 --   8943 -- % of Street Outreach exits in the period whose destination is
 --          Safe Haven or Emergency Shelter (101, 118), Temporary (300-399,
 --          e.g. Transitional Housing) or Permanent (400-499) -- i.e. moved
@@ -32,11 +36,27 @@
 --          rate (an earlier draft that bucketed the whole 100-199 range as
 --          "shelter" came out 3x too high). Institutional (200-299) and
 --          other/unknown (8, 9, 17, 24, 30, 37, 99) destinations don't count
---          as success either way.
+--          as success either way. Exits are from the same three scoped
+--          projects as 8941/8942, not every SO project CoC-wide.
 WITH so_projects AS (
+  -- Per explicit request: these three specific Street Outreach projects
+  -- only, not every ProjectType = 4 project CoC-wide (contrast
+  -- sql/m3_sheltered.sql's qualifying_projects, which stays CoC-wide).
+  -- Matched by ProjectID rather than ProjectName so a later rename doesn't
+  -- silently drop one -- confirm these three still resolve to the right
+  -- names if this list is ever revisited:
+  --   19876 - DPOB - Downtown Partnership Street Outreach
+  --   19922 - MOHS Homeless Outreach
+  --   19586 - PEP-Mobile Outreach & Treatment Project
+  -- Deliberately excludes other similarly-named SO projects also live in
+  -- balhmiscsv.Project (MOHS District 10 Street Outreach, MOHS Encampment
+  -- Outreach, PEP-BCORE Outreach & Treatment Program, PEP-SUD Outreach &
+  -- Treatment Program) and Franciscan Center Street Outreach -- the
+  -- workbook's own notes for measure 8942 once listed Franciscan Center
+  -- alongside these three, but this scoping request names only three.
   SELECT ProjectID
   FROM balhmiscsv.Project
-  WHERE ProjectType = 4 AND ContinuumProject = 1
+  WHERE ProjectID IN (19876, 19922, 19586)
 ),
 ce_projects AS (
   SELECT ProjectID
