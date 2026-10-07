@@ -1,0 +1,195 @@
+"""Observable Framework data loader: City Performance Measures dashboard.
+
+A ground-up replacement for FY27_Measures_and_Notes.xlsx's own methodology
+column: that workbook's 19 measures are currently pulled from a mix of
+manual HMIS report exports ("HMIS Active Client List"), HUD SPM/APR report
+pulls, and annual PIT/HIC submissions. This loader computes the same
+measures directly from balhmiscsv instead, so they can be rebuilt on demand
+rather than hand-assembled each quarter.
+
+First slice, built and reviewed one service category at a time like every
+other dashboard in this repo: "Outreach to the Homeless" only (measures
+8941, 8942, 8943; sql/city_outreach.sql). The other 14 non-PIT measures
+(Homeless Prevention, Permanent Housing, Temporary Housing) are not built
+yet -- add them the same way once this slice is confirmed to be a good
+pattern. PIT-sourced measures (8955, 8956) are out of scope entirely: a
+Point-in-Time count is a single-night manual count, not HMIS enrollment
+data -- the same reasoning the Westchester repo's own CLAUDE.md documents
+for omitting PIT from spm.json.py there.
+
+Uses the City's fiscal year (July 1 - June 30, confirmed against
+FY27_Measures_and_Notes.xlsx's own "CFY" quarter columns), NOT the federal
+fiscal year (Oct 1 - Sep 30) every other dashboard in this repo uses --
+genuinely a different calendar, specific to this one dashboard.
+
+Known divergence from the workbook's own historical numbers, expected and
+not a bug: this loader's Active-Clients methodology (matching how every
+other measure in this repo counts "active" enrollments) doesn't reproduce
+the legacy "HMIS Active Client List" report's exact figures. That's the
+point of switching data sources, not a defect -- see sql/city_outreach.sql's
+own header for the one caveat on measure 8943 (destination code 116, "place
+not meant for habitation") that *was* a real methodology bug and got fixed.
+"""
+
+import json
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+from google.cloud import bigquery
+
+BQ_PROJECT_ID = "baldash-508920"
+SQL_DIR = Path(__file__).resolve().parents[2] / "sql"
+
+client = bigquery.Client(project=BQ_PROJECT_ID)
+
+CITY_OUTREACH_SQL = (SQL_DIR / "city_outreach.sql").read_text()
+
+# FY25/FY26/FY27 targets, copied from FY27_Measures_and_Notes.xlsx's own
+# Results sheet (columns J, P, V) -- not derived from HMIS data at all.
+TARGETS = {
+    "street-outreach-enrollments": {"CFY25": 4000, "CFY26": 4000, "CFY27": 3800},
+    "street-outreach-ce-overlap": {"CFY25": 0.20, "CFY26": 0.20, "CFY27": 0.20},
+    "street-outreach-successful-exits": {"CFY25": 0.27, "CFY26": 0.27, "CFY27": 0.27},
+}
+
+
+def query(sql, params):
+    job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params))
+    return dict(next(iter(job.result())))
+
+
+def run_period(report_start, report_end):
+    return query(CITY_OUTREACH_SQL, [
+        bigquery.ScalarQueryParameter("report_start", "DATE", report_start),
+        bigquery.ScalarQueryParameter("report_end", "DATE", report_end),
+    ])
+
+
+def add_months(d, months):
+    m = d.month - 1 + months
+    return date(d.year + m // 12, m % 12 + 1, 1)
+
+
+def cfy_label(quarter_start):
+    """The city fiscal year (Jul 1 - Jun 30) a quarter start date falls in,
+    labeled by the calendar year it ends in -- Jul-Dec of year N and
+    Jan-Jun of year N+1 are both "CFY<N+1>"."""
+    end_year = quarter_start.year + 1 if quarter_start.month >= 7 else quarter_start.year
+    return f"CFY{end_year % 100}"
+
+
+def city_quarters(first_start, export_end):
+    """[(cfy_label, quarter_label, start, end), ...] for every complete city
+    fiscal quarter (Jul-Sep, Oct-Dec, Jan-Mar, Apr-Jun) from first_start
+    through the latest one fully covered by export_end."""
+    quarters = []
+    start = first_start
+    q_num = (((start.month - 7) % 12) // 3) + 1
+    while True:
+        end = add_months(start, 3) - date.resolution
+        if end > export_end:
+            break
+        quarters.append((cfy_label(start), f"Q{q_num}", start, end))
+        start = add_months(start, 3)
+        q_num = q_num % 4 + 1
+    return quarters
+
+
+def cfy_bounds(cfy_label):
+    end_year = 2000 + int(cfy_label[3:])
+    return date(end_year - 1, 7, 1), date(end_year, 6, 30)
+
+
+def build_measure(measure_id_key, measure_id, title, description, fmt, unit, better, by_quarter, by_cfy):
+    return {
+        "id": measure_id_key,
+        "measureId": measure_id,
+        "title": title,
+        "description": description,
+        "format": fmt,
+        "unit": unit,
+        "better": better,
+        "quarters": by_quarter,
+        "annual": by_cfy,
+        "targets": TARGETS[measure_id_key],
+    }
+
+
+def main():
+    export_end = query(
+        "SELECT MAX(ExportEndDate) AS d FROM balhmiscsv.Export", []
+    )["d"]
+
+    quarters = city_quarters(date(2024, 7, 1), export_end)
+    complete_cfys = sorted({q[0] for q in quarters if q[1] == "Q4"})
+
+    with ThreadPoolExecutor(max_workers=len(quarters) + len(complete_cfys)) as pool:
+        quarter_futures = {
+            (cfy, q): pool.submit(run_period, start, end)
+            for cfy, q, start, end in quarters
+        }
+        cfy_futures = {
+            cfy: pool.submit(run_period, *cfy_bounds(cfy))
+            for cfy in complete_cfys
+        }
+        quarter_results = {key: f.result() for key, f in quarter_futures.items()}
+        cfy_results = {cfy: f.result() for cfy, f in cfy_futures.items()}
+
+    def series(field, targets, pct=False):
+        by_quarter = [
+            {
+                "cfy": cfy,
+                "quarter": q,
+                "label": f"{cfy} {q}",
+                "value": (quarter_results[(cfy, q)][field[0]] / quarter_results[(cfy, q)][field[1]])
+                if pct else quarter_results[(cfy, q)][field],
+            }
+            for cfy, q, _, _ in quarters
+        ]
+        by_cfy = [
+            {
+                "cfy": cfy,
+                "value": (cfy_results[cfy][field[0]] / cfy_results[cfy][field[1]]) if pct else cfy_results[cfy][field],
+                "target": targets.get(cfy),
+            }
+            for cfy in complete_cfys
+        ]
+        return by_quarter, by_cfy
+
+    measures = []
+    for key, measure_id, title, description, fmt, unit, better, field, pct in [
+        (
+            "street-outreach-enrollments", 8941, "Street outreach enrollments",
+            "Unduplicated clients with an active Street Outreach enrollment at any point in the period.",
+            "number", "clients", "higher", "so_active_clients", False,
+        ),
+        (
+            "street-outreach-ce-overlap", 8942, "Street outreach → Coordinated Access",
+            "Of those clients, the percent who also have an active Coordinated Access enrollment in the same period.",
+            "percent", "%", "higher", ("so_also_ce", "so_active_clients"), True,
+        ),
+        (
+            "street-outreach-successful-exits", 8943, "Successful street outreach exits",
+            "Percent of street outreach exits to shelter, Safe Haven, transitional housing, or permanent housing.",
+            "percent", "%", "higher", ("so_exits_successful", "so_exits_total"), True,
+        ),
+    ]:
+        by_quarter, by_cfy = series(field, TARGETS[key], pct)
+        measures.append(build_measure(key, measure_id, title, description, fmt, unit, better, by_quarter, by_cfy))
+
+    json.dump(
+        {
+            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "export_end": export_end.isoformat(),
+            "service": "Outreach to the Homeless",
+            "measures": measures,
+        },
+        sys.stdout,
+        indent=2,
+    )
+
+
+if __name__ == "__main__":
+    main()
