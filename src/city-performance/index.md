@@ -6,7 +6,7 @@ toc: false
 <link rel="stylesheet" href="../components/city-performance.css">
 
 ```js
-import {renderMeasures, renderFootnote, renderThemeToggle} from "../components/city-performance.js";
+import {renderMeasures, renderFootnote, renderThemeToggle, recentQuarters} from "../components/city-performance.js";
 const doc = FileAttachment("../data/city-performance.json").json();
 ```
 
@@ -25,7 +25,45 @@ display(renderThemeToggle());
 </div>
 
 ```js
-display(renderMeasures(doc));
+// Quarter-picker: the current quarter plus the 4 before it, default
+// rightmost (current) -- moving it updates every card's stat and trend-
+// chart highlight at once, without refetching data (all quarters are
+// already in doc).
+const quarterOptions = recentQuarters(doc, 5);
+
+const pickerLabel = document.createElement("label");
+pickerLabel.textContent = "Viewing quarter:";
+pickerLabel.htmlFor = "cpm-quarter-slider";
+
+const slider = document.createElement("input");
+slider.type = "range";
+slider.id = "cpm-quarter-slider";
+slider.min = "0";
+slider.max = String(quarterOptions.length - 1);
+slider.step = "1";
+slider.value = String(quarterOptions.length - 1);
+slider.setAttribute("aria-valuetext", quarterOptions[quarterOptions.length - 1].label);
+
+const valueLabel = document.createElement("span");
+valueLabel.className = "cpm-quarter-picker-value";
+valueLabel.textContent = quarterOptions[quarterOptions.length - 1].label;
+
+const picker = document.createElement("div");
+picker.className = "cpm-quarter-picker";
+picker.append(pickerLabel, slider, valueLabel);
+display(picker);
+
+const grid = document.createElement("div");
+display(grid);
+
+function renderGrid() {
+  const selected = quarterOptions[Number(slider.value)];
+  valueLabel.textContent = selected.label;
+  slider.setAttribute("aria-valuetext", selected.label);
+  grid.replaceChildren(renderMeasures(doc, selected.label));
+}
+slider.addEventListener("input", renderGrid);
+renderGrid();
 ```
 
 ```js
