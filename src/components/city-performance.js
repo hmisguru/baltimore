@@ -66,6 +66,12 @@ function renderTrendChart(measure, selectedLabel) {
     width,
     height: 160,
     marginLeft: measure.format === "percent" ? 44 : 50,
+    // Default marginBottom isn't enough room for -35deg rotated labels as
+    // long as "CFY27 Q1" -- without this they clip against the bottom of
+    // the chart's own SVG, not just crowd the table below it. 48px
+    // confirmed against the actual rendered label bounding boxes, not
+    // just eyeballed.
+    marginBottom: 48,
     x: {domain: data.map((d) => d.label), label: null, tickRotate: -35},
     y: {grid: true, label: null, tickFormat: fmt, nice: true},
     marks: [
@@ -102,7 +108,7 @@ function renderMeasure(measure, selectedLabel) {
     <p class="cpm-card-eyebrow">Measure ${measure.measureId}</p>
     <h3 class="cpm-card-title">${measure.title}</h3>
     ${renderStat(measure, selectedLabel)}
-    ${renderTrendChart(measure, selectedLabel)}
+    <div class="cpm-chart">${renderTrendChart(measure, selectedLabel)}</div>
     ${renderAnnualTable(measure)}
     <details class="cpm-card-details">
       <summary>About this data</summary>
