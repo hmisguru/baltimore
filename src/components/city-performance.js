@@ -117,12 +117,22 @@ function renderMeasure(measure, selectedLabel) {
   </section>`;
 }
 
-/** All measures for the loaded service category, in a responsive grid.
+/** All measures, grouped into one responsive grid per service category --
+ * each category gets its own heading, in the order its measures first
+ * appear in doc.measures (the workbook's own service order).
  * @param {string} [selectedLabel] a quarter label (e.g. "CFY27 Q1") to show
  *   each card's stat/chart-highlight for -- see the quarter-picker slider in
  *   index.md. Defaults to the latest quarter when omitted. */
 export function renderMeasures(doc, selectedLabel) {
-  return html`<div class="cpm-grid">${doc.measures.map((m) => renderMeasure(m, selectedLabel))}</div>`;
+  const byService = new Map();
+  for (const m of doc.measures) {
+    if (!byService.has(m.service)) byService.set(m.service, []);
+    byService.get(m.service).push(m);
+  }
+  return html`<div class="cpm-services">${[...byService].map(([service, measures]) => html`<section class="cpm-service">
+    <h2 class="cpm-service-heading">${service}</h2>
+    <div class="cpm-grid">${measures.map((m) => renderMeasure(m, selectedLabel))}</div>
+  </section>`)}</div>`;
 }
 
 /** The last n quarters' {cfy, quarter, label} (default 5: the current
