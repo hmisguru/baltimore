@@ -12,11 +12,11 @@ const doc = FileAttachment("../data/city-performance.json").json();
 
 <div class="cpm-header">
 
-<p class="cpm-eyebrow">Prototype — Outreach to the Homeless</p>
+<p class="cpm-eyebrow">Prototype</p>
 
 # City Performance Measures
 
-<p class="cpm-lede">A direct-from-HMIS replacement for FY27_Measures_and_Notes.xlsx's own methodology, which currently pulls these numbers from a mix of manual report exports. This first slice covers the "Outreach to the Homeless" service category (3 of 19 measures); the rest come next once this one is reviewed.</p>
+<p class="cpm-lede">A direct-from-HMIS replacement for FY27_Measures_and_Notes.xlsx's own methodology, which currently pulls these numbers from a mix of manual report exports. Covers all four service categories except their income-growth measures so far (11 of 17 non-PIT measures); income growth (Permanent and Temporary Housing) comes next.</p>
 
 ```js
 display(renderThemeToggle());

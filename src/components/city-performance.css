@@ -40,6 +40,9 @@ html[data-theme="dark"] {
 .cpm-quarter-picker input[type="range"] { flex: 1 1 200px; accent-color: var(--cpm-purple); }
 .cpm-quarter-picker-value { font-size: 14px; font-weight: 700; color: var(--cpm-deep); min-width: 7ch; }
 
+.cpm-service { margin-bottom: 28px; }
+.cpm-service-heading { margin: 0 0 14px; font-size: 20px; font-weight: 700; color: var(--cpm-deep); max-width: none; }
+
 .cpm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 16px; }
 .cpm-card { padding: 20px 24px; background: var(--cpm-surface); border: 1px solid var(--cpm-border); border-top: 4px solid var(--cpm-purple); border-radius: 12px; }
 .cpm-card-eyebrow { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cpm-purple); }
