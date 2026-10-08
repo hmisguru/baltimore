@@ -180,57 +180,68 @@ def main():
     for service, key, measure_id, title, description, fmt, unit, better, field, pct in [
         (
             "Outreach to the Homeless", "street-outreach-enrollments", 8941, "Street outreach enrollments",
-            "Unduplicated clients with an active Street Outreach enrollment at any point in the period.",
+            "Unduplicated clients with an active Street Outreach enrollment at any point in the quarter. "
+            "Source: HMIS's Enrollment.csv, for three specific outreach projects identified in Project.csv.",
             "number", "clients", "higher", "so_active_clients", False,
         ),
         (
             "Outreach to the Homeless", "street-outreach-ce-overlap", 8942, "Street outreach → Coordinated Access",
-            "Of those clients, the percent who also have an active Coordinated Access enrollment in the same period.",
+            "Of those clients, the percent who also have an active Coordinated Access enrollment in the same quarter. "
+            "Source: HMIS's Enrollment.csv, matching clients across Street Outreach and Coordinated Access projects.",
             "percent", "%", "higher", ("so_also_ce", "so_active_clients"), True,
         ),
         (
             "Outreach to the Homeless", "street-outreach-successful-exits", 8943, "Successful street outreach exits",
-            "Percent of street outreach exits to shelter, Safe Haven, transitional housing, or permanent housing.",
+            "Percent of street outreach exits in the quarter that went to shelter, Safe Haven, transitional housing, or permanent housing. "
+            "Source: HMIS's Exit.csv, based on each exit's recorded destination.",
             "percent", "%", "higher", ("so_exits_successful", "so_exits_total"), True,
         ),
         (
             "Homeless Prevention", "homeless-prevention-enrollments", 8931, "Homeless Prevention enrollments",
-            "Unduplicated clients with an active Homeless Prevention enrollment at any point in the period.",
+            "Unduplicated clients with an active Homeless Prevention enrollment at any point in the quarter. "
+            "Source: HMIS's Enrollment.csv, for Homeless Prevention projects identified in Project.csv.",
             "number", "clients", "higher", "hp_active_clients", False,
         ),
         (
             "Homeless Prevention", "homeless-prevention-first-time", 8932, "First-time homeless households",
-            "Of households entering shelter, Safe Haven, or transitional housing, the percent with no prior ES/SH/TH/PH enrollment in the past 2 years.",
+            "Of households entering shelter, Safe Haven, or transitional housing, the percent with no prior shelter or housing enrollment in the past 2 years. "
+            "Source: HMIS's Enrollment.csv, tracked by each household's head of household.",
             "percent", "%", "lower", ("hh_first_time", "hh_entries_total"), True,
         ),
         (
             "Permanent Housing", "ph-retention", 8961, "Households retaining permanent housing",
-            "Of households with a moved-in PSH or Other Permanent Housing enrollment, the percent still housed or who exited to a non-homeless destination.",
+            "Of households with a moved-in enrollment in permanent supportive or other permanent housing, the percent still housed or who exited to a non-homeless destination. "
+            "Source: HMIS's Enrollment.csv and Exit.csv, tracked by each household's head of household.",
             "percent", "%", "higher", ("ph_retained", "ph_retention_universe"), True,
         ),
         (
             "Permanent Housing", "ph-beds", 8964, "Permanent housing beds",
-            "Total PSH and Other Permanent Housing beds active as of the end of the period.",
+            "Total permanent supportive and other permanent housing beds active as of the end of the quarter. "
+            "Source: HMIS's housing inventory, Inventory.csv.",
             "number", "beds", "higher", "ph_beds", False,
         ),
         (
             "Permanent Housing", "ph-returns", 8965, "Returns to homelessness after PH exit",
-            "Of households who exited to permanent housing 2 years before the period, the percent who returned to a homeless service project by period end.",
+            "Of households that exited to permanent housing 2 years before the quarter, the percent who returned to any homeless project by quarter-end. "
+            "Source: HMIS's Exit.csv and Enrollment.csv, tracked by each household's head of household.",
             "percent", "%", "lower", ("ph_returned", "ph_return_universe"), True,
         ),
         (
             "Temporary Housing", "th-exits-to-ph", 8951, "Temporary housing exits to permanent housing",
-            "Percent of persons exiting shelter, Safe Haven, transitional housing, or RRH to a permanent destination.",
+            "Percent of exits in the quarter from shelter, Safe Haven, transitional housing, or Rapid Re-Housing that went to a permanent destination. "
+            "Source: HMIS's Exit.csv, based on each exit's recorded destination.",
             "percent", "%", "higher", ("th_exits_permanent", "th_exits_universe"), True,
         ),
         (
             "Temporary Housing", "th-length-of-time", 8952, "Length of time homeless",
-            "Average number of days persons are continuously enrolled in shelter, Safe Haven, or transitional housing.",
+            "Average number of days clients are continuously enrolled in shelter, Safe Haven, or transitional housing. "
+            "Source: HMIS's Enrollment.csv, plus nightly shelter stay records in Services.csv for shelters that track by bed night.",
             "number", "days", "lower", "th_avg_lot", False,
         ),
         (
             "Temporary Housing", "es-beds", 8957, "Emergency shelter beds",
-            "Total emergency shelter beds active as of the end of the period.",
+            "Total emergency shelter beds active as of the end of the quarter. "
+            "Source: HMIS's housing inventory, Inventory.csv.",
             "number", "beds", None, "es_beds", False,
         ),
     ]:
