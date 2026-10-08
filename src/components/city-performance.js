@@ -92,7 +92,9 @@ function renderAnnualTable(measure) {
     <thead><tr><th scope="col">Fiscal Year</th><th scope="col">Actual</th><th scope="col">Target</th></tr></thead>
     <tbody>
       ${measure.annual.map((a) => {
-        const met = measure.better === "higher" ? a.value >= a.target : a.value <= a.target;
+        // No inherent direction (measure.better is null, e.g. es-beds) -- never highlight
+        // "met", same neutral treatment as statusOf()'s own !better case.
+        const met = !measure.better ? false : measure.better === "higher" ? a.value >= a.target : a.value <= a.target;
         return html`<tr>
           <th scope="row">${a.cfy}</th>
           <td data-met=${met}>${fmt(a.value)}</td>

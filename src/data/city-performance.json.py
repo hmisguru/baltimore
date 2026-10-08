@@ -47,6 +47,7 @@ SQL_FILES = {
     "outreach": (SQL_DIR / "city_outreach.sql").read_text(),
     "prevention": (SQL_DIR / "city_prevention.sql").read_text(),
     "permanent": (SQL_DIR / "city_permanent.sql").read_text(),
+    "temporary": (SQL_DIR / "city_temporary.sql").read_text(),
 }
 
 # FY25/FY26/FY27 targets, copied from FY27_Measures_and_Notes.xlsx's own
@@ -61,6 +62,9 @@ TARGETS = {
     "ph-retention": {"CFY25": 0.90, "CFY26": 0.97, "CFY27": 0.95},
     "ph-beds": {"CFY25": 4000, "CFY26": 4000, "CFY27": 5000},
     "ph-returns": {"CFY25": 0.14, "CFY26": 0.14, "CFY27": 0.14},
+    "th-exits-to-ph": {"CFY25": 0.45, "CFY26": 0.45, "CFY27": 0.45},
+    "th-length-of-time": {"CFY25": 150, "CFY26": 120, "CFY27": 120},
+    "es-beds": {"CFY25": 1535, "CFY26": 1535, "CFY27": 1535},
 }
 
 
@@ -213,6 +217,21 @@ def main():
             "Permanent Housing", "ph-returns", 8965, "Returns to homelessness after PH exit",
             "Of households who exited to permanent housing 2 years before the period, the percent who returned to a homeless service project by period end.",
             "percent", "%", "lower", ("ph_returned", "ph_return_universe"), True,
+        ),
+        (
+            "Temporary Housing", "th-exits-to-ph", 8951, "Temporary housing exits to permanent housing",
+            "Percent of persons exiting shelter, Safe Haven, transitional housing, or RRH to a permanent destination.",
+            "percent", "%", "higher", ("th_exits_permanent", "th_exits_universe"), True,
+        ),
+        (
+            "Temporary Housing", "th-length-of-time", 8952, "Length of time homeless",
+            "Average number of days persons are continuously enrolled in shelter, Safe Haven, or transitional housing.",
+            "number", "days", "lower", "th_avg_lot", False,
+        ),
+        (
+            "Temporary Housing", "es-beds", 8957, "Emergency shelter beds",
+            "Total emergency shelter beds active as of the end of the period.",
+            "number", "beds", None, "es_beds", False,
         ),
     ]:
         by_quarter, by_cfy = series(field, TARGETS[key], pct)
