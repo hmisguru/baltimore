@@ -16,7 +16,7 @@ const doc = FileAttachment("../data/city-performance.json").json();
 
 # City Performance Measures
 
-<p class="cpm-lede">A direct-from-HMIS replacement for FY27_Measures_and_Notes.xlsx's own methodology, which currently pulls these numbers from a mix of manual report exports. Covers Outreach to the Homeless and Homeless Prevention so far (5 of 17 non-PIT measures); Permanent Housing and Temporary Housing come next.</p>
+<p class="cpm-lede">A direct-from-HMIS replacement for FY27_Measures_and_Notes.xlsx's own methodology, which currently pulls these numbers from a mix of manual report exports. Covers Outreach to the Homeless, Homeless Prevention, and most of Permanent Housing so far (8 of 17 non-PIT measures); income-growth measures and Temporary Housing come next.</p>
 
 ```js
 display(renderThemeToggle());

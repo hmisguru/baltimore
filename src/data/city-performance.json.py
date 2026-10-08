@@ -46,6 +46,7 @@ client = bigquery.Client(project=BQ_PROJECT_ID)
 SQL_FILES = {
     "outreach": (SQL_DIR / "city_outreach.sql").read_text(),
     "prevention": (SQL_DIR / "city_prevention.sql").read_text(),
+    "permanent": (SQL_DIR / "city_permanent.sql").read_text(),
 }
 
 # FY25/FY26/FY27 targets, copied from FY27_Measures_and_Notes.xlsx's own
@@ -57,6 +58,9 @@ TARGETS = {
     "street-outreach-successful-exits": {"CFY25": 0.27, "CFY26": 0.27, "CFY27": 0.27},
     "homeless-prevention-enrollments": {"CFY25": 600, "CFY26": 600},
     "homeless-prevention-first-time": {"CFY25": 0.75, "CFY26": 0.75, "CFY27": 0.75},
+    "ph-retention": {"CFY25": 0.90, "CFY26": 0.97, "CFY27": 0.95},
+    "ph-beds": {"CFY25": 4000, "CFY26": 4000, "CFY27": 5000},
+    "ph-returns": {"CFY25": 0.14, "CFY26": 0.14, "CFY27": 0.14},
 }
 
 
@@ -194,6 +198,21 @@ def main():
             "Homeless Prevention", "homeless-prevention-first-time", 8932, "First-time homeless households",
             "Of households entering shelter, Safe Haven, or transitional housing, the percent with no prior ES/SH/TH/PH enrollment in the past 2 years.",
             "percent", "%", "lower", ("hh_first_time", "hh_entries_total"), True,
+        ),
+        (
+            "Permanent Housing", "ph-retention", 8961, "Households retaining permanent housing",
+            "Of households with a moved-in PSH or Other Permanent Housing enrollment, the percent still housed or who exited to a non-homeless destination.",
+            "percent", "%", "higher", ("ph_retained", "ph_retention_universe"), True,
+        ),
+        (
+            "Permanent Housing", "ph-beds", 8964, "Permanent housing beds",
+            "Total PSH and Other Permanent Housing beds active as of the end of the period.",
+            "number", "beds", "higher", "ph_beds", False,
+        ),
+        (
+            "Permanent Housing", "ph-returns", 8965, "Returns to homelessness after PH exit",
+            "Of households who exited to permanent housing 2 years before the period, the percent who returned to a homeless service project by period end.",
+            "percent", "%", "lower", ("ph_returned", "ph_return_universe"), True,
         ),
     ]:
         by_quarter, by_cfy = series(field, TARGETS[key], pct)
