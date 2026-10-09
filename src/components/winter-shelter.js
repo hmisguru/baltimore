@@ -133,12 +133,26 @@ function renderSparkline(widget, rows) {
   const [yField] = widget.y.field;
   const total = rows.reduce((s, r) => s + (r[yField] ?? 0), 0);
   const fmt = d3format(",~f");
+  // Same fix as the calendar heatmap's tip: title has to be a mark channel,
+  // not nested inside tip (tip: {format: {...}} with no title channel falls
+  // back to Plot's default tip content, which shows raw field names like
+  // "checkin_count" instead of a plain-language label).
+  const titleFor = (r) => `${utcDateLabel(parseUTCDate(r[xField]))}: ${fmt(r[yField] ?? 0)} check-in${(r[yField] ?? 0) === 1 ? "" : "s"}`;
   const chart = resize((width) => Plot.plot({
     width,
-    height: 60,
+    // height raised from 60 to 82 (not just marginTop) -- margin alone
+    // reserves space by shrinking the plot area inside the same total SVG
+    // height, it doesn't add room beyond it. The 52px drawable sparkline
+    // area (60 - 4 - 4 originally) is kept the same size; the extra 22px
+    // goes entirely into headroom above it so a point near the top of the
+    // line has somewhere to put its tip box instead of overflowing the
+    // SVG's own bounds (SVG has no implicit clipping) onto the "N check-ins
+    // this season" text sitting right above the chart. Confirmed live via a
+    // user-reported screenshot.
+    height: 82,
     marginLeft: 2,
     marginRight: 2,
-    marginTop: 4,
+    marginTop: 26,
     marginBottom: 4,
     // type: "point" -- these are ISO date strings read as plain category
     // labels for even horizontal spacing (a sparkline has no axis to read
@@ -149,7 +163,7 @@ function renderSparkline(widget, rows) {
     y: {axis: null},
     marks: [
       Plot.areaY(rows, {x: xField, y: yField, fill: "var(--series-1)", fillOpacity: 0.15, curve: "basis"}),
-      Plot.line(rows, {x: xField, y: yField, stroke: "var(--series-1)", strokeWidth: 1.5, curve: "basis", tip: {format: {x: (d) => utcDateLabel(parseUTCDate(d)), y: fmt}}})
+      Plot.line(rows, {x: xField, y: yField, stroke: "var(--series-1)", strokeWidth: 1.5, curve: "basis", title: titleFor, tip: true})
     ]
   }));
   return html`<div>
