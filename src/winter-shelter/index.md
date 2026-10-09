@@ -1,6 +1,7 @@
 ---
 title: "Winter Shelter: FY2026 Season Review (prototype)"
 toc: false
+footer: "Source: Baltimore City Continuum of Care (MD-501) HMIS.<br>Author: Daniel Gore, HMIS Manager"
 ---
 
 <link rel="stylesheet" href="../components/winter-shelter.css">
