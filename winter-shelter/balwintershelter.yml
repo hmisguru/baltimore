@@ -1,0 +1,521 @@
+name: "Winter Shelter: FY2026 Season Review"
+description: Nightly check-in activity across Baltimore's Winter Shelter program.
+connection: clienttrack
+
+rows:
+  - widgets:
+      - name: Winter Shelter Season
+        type: metric
+        description: The Winter Shelter season this dashboard covers (Nov 1 - Mar 31). The SQL below still computes it dynamically from CURRENT_DATE('America/New_York') at query time, but this dashboard itself is not auto-renewed each year -- per this project's per-season design (see CLAUDE.md), a future season gets a freshly built dashboard once it closes on 3/31, rather than this "FY2026 Season Review" silently rolling forward into a new season's data.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          )
+          SELECT CONCAT(FORMAT_DATE('%-m/%-d/%Y', season_start), ' - ', FORMAT_DATE('%-m/%-d/%Y', season_end)) AS season_range
+          FROM season_bounds
+        value:
+          field: season_range
+          type: category
+        col: 6
+
+      - name: Activation Nights
+        type: metric
+        description: Nights this season with at least 1 check-in logged across the 3 Winter Shelter facilities -- Winter Shelter is only "activated" on specific cold-weather nights, not every night of the season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            JOIN clienttrack.HousingFacility hf ON hf.HousingID = sci.HousingID
+            CROSS JOIN season_bounds sb
+            WHERE s.ServiceCodeID = 2
+              AND hf.ProgramID IN (19902, 19872, 19998)
+              AND DATE(s.BeginDate) BETWEEN sb.season_start AND sb.season_end
+            GROUP BY checkin_date
+          )
+          SELECT COUNT(*) AS activation_nights
+          FROM checkins
+          WHERE checkin_count > 0
+        value:
+          field: activation_nights
+          type: number
+          format: ",.0f"
+        col: 6
+
+  - widgets:
+      - name: Total Persons Sheltered
+        type: metric
+        description: Distinct clients (Service.ClientID) who checked in at least once at the 3 Winter Shelter facilities this season -- a person counted once regardless of how many nights they stayed.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          )
+          SELECT COUNT(DISTINCT s.ClientID) AS total_persons_sheltered
+          FROM clienttrack.Service s
+          JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+          JOIN clienttrack.HousingFacility hf ON hf.HousingID = sci.HousingID
+          CROSS JOIN season_bounds sb
+          WHERE s.ServiceCodeID = 2
+            AND hf.ProgramID IN (19902, 19872, 19998)
+            AND DATE(s.BeginDate) BETWEEN sb.season_start AND sb.season_end
+        value:
+          field: total_persons_sheltered
+          type: number
+          format: ",.0f"
+        col: 6
+
+      - name: Total Bed Nights Provided
+        type: metric
+        description: Total check-in records (Service.ServiceID) at the 3 Winter Shelter facilities this season -- one bed night per person per night stayed, so a person with multiple stays is counted once per night.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          )
+          SELECT COUNT(s.ServiceID) AS total_bed_nights_provided
+          FROM clienttrack.Service s
+          JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+          JOIN clienttrack.HousingFacility hf ON hf.HousingID = sci.HousingID
+          CROSS JOIN season_bounds sb
+          WHERE s.ServiceCodeID = 2
+            AND hf.ProgramID IN (19902, 19872, 19998)
+            AND DATE(s.BeginDate) BETWEEN sb.season_start AND sb.season_end
+        value:
+          field: total_bed_nights_provided
+          type: number
+          format: ",.0f"
+        col: 6
+
+  - widgets:
+      - name: Nightly Check-Ins
+        type: chart
+        chart: calendar
+        description: Check-ins per night at the 3 Winter Shelter facilities (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 1 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only "activated" on specific nights (typically triggered by cold weather), so most of the season shows 0.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            JOIN clienttrack.HousingFacility hf ON hf.HousingID = sci.HousingID
+            WHERE s.ServiceCodeID = 2
+              AND hf.ProgramID IN (19902, 19872, 19998)
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        value: { field: checkin_count }
+        col: 6
+
+      - name: Nightly Degrees At or Below 32°F with Wind Chill (BWI)
+        type: chart
+        chart: calendar
+        description: Nights this season when BWI Marshall Airport's (station USW00093721) wind-chill-adjusted temperature reached 32°F or below, placed side by side with Nightly Check-Ins for visual comparison. Wind chill is computed from TMIN and AWND (average daily wind speed) via the standard NWS formula (35.74 + 0.6215*T - 35.75*V^0.16 + 0.4275*T*V^0.16, valid for T<=50F and V>=3mph; otherwise wind chill = raw temperature) -- a daily-average approximation, not a true overnight-minimum reading, since NOAA's daily-summaries dataset has no wind chill field or hourly wind data of its own. The `value` is degrees below freezing (GREATEST(32 - wind_chill_f, 0)), not raw temperature, so the coldest/most dangerous nights render as the most intense cells -- confirmed live, with wind chill applied, 118 of the season's 151 nights reach 32F or below, vs. 93 by raw temperature alone. The same GENERATE_DATE_ARRAY date spine as Nightly Check-Ins guarantees every night in the season appears. `weather.DailyBWI` is now a one-time static snapshot of the FY2026 season only (see CLAUDE.md's Weather sync section) -- unlike the check-in widgets on this dashboard, this one will show no data for any season other than FY2026, even though the date spine above still computes from CURRENT_DATE('America/New_York') dynamically.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          wind_chill AS (
+            SELECT
+              DATE,
+              CASE
+                WHEN TMIN <= 50 AND AWND >= 3 THEN
+                  35.74 + 0.6215 * TMIN - 35.75 * POWER(AWND, 0.16) + 0.4275 * TMIN * POWER(AWND, 0.16)
+                ELSE TMIN
+              END AS wind_chill_f
+            FROM weather.DailyBWI
+          )
+          SELECT
+            ds.day AS weather_date,
+            GREATEST(32 - wc.wind_chill_f, 0) AS degrees_below_freezing
+          FROM date_spine ds
+          LEFT JOIN wind_chill wc ON wc.DATE = ds.day
+          ORDER BY ds.day
+        x: { field: weather_date }
+        value: { field: degrees_below_freezing }
+        col: 6
+
+  - widgets:
+      - name: MCVET - Winter Shelter
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MCVET - Winter Shelter (HousingID 283), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 283
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: ACC - WHRC Winter Overflow
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at ACC - WHRC Winter Overflow (HousingID 297), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 297
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: MOHS Winter Shelter - Sleep Inn Singles & Couples
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS Winter Shelter - Sleep Inn Singles & Couples (HousingID 394), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 394
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: MOHS Winter Shelter - Sleep Inn Families
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS Winter Shelter - Sleep Inn Families (HousingID 395), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 395
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+  - widgets:
+      - name: MOHS Winter Shelter - Samuel B Morse
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS Winter Shelter - Samuel B Morse (HousingID 397), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 397
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: MOHS Winter Shelter - 311 Saratoga
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS Winter Shelter - 311 Saratoga (HousingID 393), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 393
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: MOHS WS - Fairfield Inn Singles & Couples
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS WS - Fairfield Inn Singles & Couples (HousingID 384), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 384
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
+
+      - name: MOHS Winter Shelter - Fairfield Inn Families
+        type: chart
+        chart: sparkline
+        description: Nightly check-ins at MOHS Winter Shelter - Fairfield Inn Families (HousingID 385), current Winter Shelter season.
+        sql: |
+          WITH season AS (
+            SELECT
+              CASE
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+              END AS season_start
+          ),
+          season_bounds AS (
+            SELECT season_start, DATE(EXTRACT(YEAR FROM season_start) + 1, 3, 31) AS season_end
+            FROM season
+          ),
+          date_spine AS (
+            SELECT day
+            FROM season_bounds, UNNEST(GENERATE_DATE_ARRAY(season_start, season_end)) AS day
+          ),
+          checkins AS (
+            SELECT DATE(s.BeginDate) AS checkin_date, COUNT(*) AS checkin_count
+            FROM clienttrack.Service s
+            JOIN clienttrack.ServiceCheckIn sci ON sci.ServiceID = s.ServiceID
+            WHERE s.ServiceCodeID = 2
+              AND sci.HousingID = 385
+            GROUP BY checkin_date
+          )
+          SELECT
+            ds.day AS checkin_date,
+            COALESCE(c.checkin_count, 0) AS checkin_count
+          FROM date_spine ds
+          LEFT JOIN checkins c ON c.checkin_date = ds.day
+          ORDER BY ds.day
+        x: { field: checkin_date }
+        y: { field: [checkin_count] }
+        col: 3
