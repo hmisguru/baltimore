@@ -185,6 +185,11 @@ const DESCRIPTION_OVERRIDES = {
   "Total Persons Sheltered": "Distinct clients (Service.ClientID) who checked in at least once at any Winter Shelter facility this season -- a person counted once regardless of how many nights they stayed.",
   "Total Bed Nights Provided": "Total check-in records (Service.ServiceID) at any Winter Shelter facility this season -- one bed night per person per night stayed, so a person with multiple stays is counted once per night.",
   "Nightly Check-Ins": "Check-ins per night at any Winter Shelter facility (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 1 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only \"activated\" on specific nights (typically triggered by cold weather), so most of the season shows 0.",
+  // Trimmed per explicit request: drops the closing sentences about the
+  // GENERATE_DATE_ARRAY date spine and weather.DailyBWI now being a
+  // one-time FY2026-only snapshot -- internal build detail, not something
+  // a viewer reading "About this data" needs.
+  "Nightly Degrees At or Below 32°F with Wind Chill (BWI)": "Nights this season when BWI Marshall Airport's (station USW00093721) wind-chill-adjusted temperature reached 32°F or below, placed side by side with Nightly Check-Ins for visual comparison. Wind chill is computed from TMIN and AWND (average daily wind speed) via the standard NWS formula (35.74 + 0.6215*T - 35.75*V^0.16 + 0.4275*T*V^0.16, valid for T<=50F and V>=3mph; otherwise wind chill = raw temperature) -- a daily-average approximation, not a true overnight-minimum reading, since NOAA's daily-summaries dataset has no wind chill field or hourly wind data of its own. The `value` is degrees below freezing (GREATEST(32 - wind_chill_f, 0)), not raw temperature, so the coldest/most dangerous nights render as the most intense cells -- confirmed live, with wind chill applied, 118 of the season's 151 nights reach 32F or below, vs. 93 by raw temperature alone.",
 };
 
 function renderWidget(doc, widget) {
