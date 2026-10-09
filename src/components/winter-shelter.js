@@ -83,11 +83,16 @@ function renderCalendar(widget, rows, rampClass) {
   const weekCount = Math.max(...cells.map((c) => c.week)) + 1;
 
   const fmt = Number.isInteger(max) ? d3format(",~f") : d3format(",.1f");
+  const isCold = valueField === "degrees_below_freezing";
   // valueField distinguishes the two calendars this dashboard has: each
   // gets its own plain-language hover title rather than a bare number.
-  const titleFor = valueField === "degrees_below_freezing"
+  const titleFor = isCold
     ? (d) => `${d.label}: ${fmt(d.value)}° below freezing (wind chill)`
     : (d) => `${d.label}: ${fmt(d.value)} check-in${d.value === 1 ? "" : "s"}`;
+  // The check-ins legend's "max 291" is self-evident from the card's own
+  // title; the cold calendar's bare "max 36.4" isn't (36.4 what?), so it
+  // gets the same unit spelled out here, per explicit request.
+  const legendMax = isCold ? `${fmt(max)} below freezing` : fmt(max);
   const chart = resize((width) => Plot.plot({
     width,
     height: 36 * WEEKDAYS.length + 20,
@@ -119,7 +124,7 @@ function renderCalendar(widget, rows, rampClass) {
     <div class="ws-legend">
       <span class="ws-legend-label">Fewer</span>
       ${[0, 1, 2, 3, 4].map((b) => html`<span class="ws-legend-swatch" style=${`background:var(--ws-${rampClass}-${b})`}></span>`)}
-      <span class="ws-legend-label">More (max ${fmt(max)})</span>
+      <span class="ws-legend-label">More (max ${legendMax})</span>
     </div>
   </div>`;
 }
