@@ -83,6 +83,11 @@ function renderCalendar(widget, rows, rampClass) {
   const weekCount = Math.max(...cells.map((c) => c.week)) + 1;
 
   const fmt = Number.isInteger(max) ? d3format(",~f") : d3format(",.1f");
+  // valueField distinguishes the two calendars this dashboard has: each
+  // gets its own plain-language hover title rather than a bare number.
+  const titleFor = valueField === "degrees_below_freezing"
+    ? (d) => `${d.label}: ${fmt(d.value)}° below freezing (wind chill)`
+    : (d) => `${d.label}: ${fmt(d.value)} check-in${d.value === 1 ? "" : "s"}`;
   const chart = resize((width) => Plot.plot({
     width,
     height: 36 * WEEKDAYS.length + 20,
@@ -92,13 +97,18 @@ function renderCalendar(widget, rows, rampClass) {
     x: {domain: Array.from({length: weekCount}, (_, i) => i), axis: null},
     y: {domain: WEEKDAYS, label: null, tickSize: 0},
     marks: [
+      // `title` must be a mark channel (not nested inside `tip`) for Plot to
+      // show it as the hover tooltip's text -- tip: true alone, with no
+      // title channel, falls back to showing x/y as bare numbers, which is
+      // what silently produced the no-data-on-hover bug this replaces.
       Plot.cell(cells, {
         x: "week",
         y: "weekday",
         fill: (d) => `var(--ws-${rampClass}-${d.bin})`,
         inset: 2,
         rx: 2,
-        tip: {format: {x: null, y: null}, title: (d) => `${d.label}\n${fmt(d.value)}`}
+        title: titleFor,
+        tip: true
       })
     ]
   }));
@@ -148,6 +158,21 @@ function renderSparkline(widget, rows) {
   </div>`;
 }
 
+// Display-only description overrides, per explicit request -- none of these
+// touch balwintershelter.yml itself (same convention as inventory.js's own
+// TITLE_OVERRIDES): the dashboard's own "3 Winter Shelter facilities"
+// phrasing undersold the scope (those 3 HousingFacility.ProgramIDs cover 8
+// distinct physical sites, not 3), so every description mentioning a
+// specific facility count was reworded to "any Winter Shelter facility".
+// Keyed by widget name, like TITLE_OVERRIDES.
+const DESCRIPTION_OVERRIDES = {
+  "Winter Shelter Season": "The Winter Shelter season this dashboard covers (Nov 1 - Mar 31).",
+  "Activation Nights": "Nights this season with at least 1 check-in logged in any Winter Shelter facility -- Winter Shelter is only \"activated\" on specific cold-weather nights, not every night of the season.",
+  "Total Persons Sheltered": "Distinct clients (Service.ClientID) who checked in at least once at any Winter Shelter facility this season -- a person counted once regardless of how many nights they stayed.",
+  "Total Bed Nights Provided": "Total check-in records (Service.ServiceID) at any Winter Shelter facility this season -- one bed night per person per night stayed, so a person with multiple stays is counted once per night.",
+  "Nightly Check-Ins": "Check-ins per night at any Winter Shelter facility (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 1 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only \"activated\" on specific nights (typically triggered by cold weather), so most of the season shows 0.",
+};
+
 function renderWidget(doc, widget) {
   const rows = widgetRows(doc, widget);
   let body;
@@ -156,16 +181,18 @@ function renderWidget(doc, widget) {
   else if (widget.chart === "sparkline") body = renderSparkline(widget, rows);
   else body = html`<p class="ws-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
 
+  const descriptionText = DESCRIPTION_OVERRIDES[widget.name] ?? widget.description;
+
   // Metric tiles are a single plain-language sentence -- shown inline, same
   // as coordinated-entry.js's own convention. Calendars and sparklines carry
   // longer methodology notes (facility ids, the wind-chill formula, the
   // date-spine workaround), so those collapse below the chart instead of
   // pushing it down the page.
   const collapsed = widget.type !== "metric";
-  const description = widget.description
+  const description = descriptionText
     ? collapsed
-      ? html`<details class="ws-card-details"><summary>About this data</summary><p class="ws-card-description">${widget.description}</p></details>`
-      : html`<p class="ws-card-description">${widget.description}</p>`
+      ? html`<details class="ws-card-details"><summary>About this data</summary><p class="ws-card-description">${descriptionText}</p></details>`
+      : html`<p class="ws-card-description">${descriptionText}</p>`
     : null;
 
   return html`<section class="ws-card${widget.type === "metric" ? " ws-card-metric" : ""}" style="--span:${widget.col ?? 12}" data-widget=${widget.id}>
