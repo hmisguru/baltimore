@@ -1,0 +1,110 @@
+/* Winter Shelter: FY2026 Season Review dashboard styles, scoped to
+   /winter-shelter/. Token names/values match coordinated-entry.css's own
+   --ce-* tokens exactly (same visual identity across this site's
+   dashboards), plus two new sequential ramps this dashboard's calendar
+   heatmaps need that no other dashboard here uses yet. */
+:root {
+  --ws-purple: #60397c; --ws-deep: #2f1c3d; --ws-gold: #fabe21;
+  --ws-surface: #f4fafb; --ws-border: #d9e7ea; --ws-muted: #4f4a57;
+  --series-1: #2a78d6;
+
+  /* "Nightly Check-Ins" ramp -- one hue (the brand purple), light->dark,
+     step 0 reserved for genuine zero-activity nights (most of the season --
+     Winter Shelter only "activates" on specific cold nights) so 0 reads as
+     visually distinct from "a little," not just the palest tint of it. */
+  --ws-seq-checkin-0: #f1edf5; --ws-seq-checkin-1: #d9cfe3; --ws-seq-checkin-2: #b79ecf;
+  --ws-seq-checkin-3: #8f5fae; --ws-seq-checkin-4: #60397c;
+
+  /* "Nightly Degrees At or Below 32F" ramp -- a cold blue, distinct hue from
+     the check-in ramp since the two calendars sit side by side (never
+     directly overlaid, so hue doesn't need to double as a legend key
+     between them -- each chart has its own legend). */
+  --ws-seq-cold-0: #eef6fb; --ws-seq-cold-1: #c7e3f2; --ws-seq-cold-2: #8ec8e6;
+  --ws-seq-cold-3: #4fa3d1; --ws-seq-cold-4: #1f6fa8;
+}
+
+/* Light/dark toggle, default light -- user-controlled (not OS-driven), via a
+   [data-theme] attribute set on <html> by renderThemeToggle()/applyTheme()
+   in winter-shelter.js. Surface/text tokens match inventory.css/bridge.css/
+   coordinated-entry.css's own data-theme="dark" variant exactly, for visual
+   consistency across the site's dashboards. The two sequential ramps get
+   their own dark steps (not an automatic flip of the light ones) per the
+   dataviz skill -- validated by eye against this surface: step 0 is a touch
+   lighter than the surface so a "no activity" night is still a visible cell
+   rather than disappearing into the background, and intensity increases by
+   getting brighter against the dark backdrop rather than darker. */
+html[data-theme="dark"] {
+  --ws-purple: #d9cfe3;
+  --ws-deep: #ffffff;
+  --ws-surface: #2f1c3d;
+  --ws-border: #4a3659;
+  --ws-muted: #c3b8d1;
+  --series-1: #3987e5;
+  --ws-seq-checkin-0: #42304f; --ws-seq-checkin-1: #5c3f73; --ws-seq-checkin-2: #7a52a0;
+  --ws-seq-checkin-3: #a177c9; --ws-seq-checkin-4: #d9cfe3;
+  --ws-seq-cold-0: #1c3344; --ws-seq-cold-1: #234a66; --ws-seq-cold-2: #2f6690;
+  --ws-seq-cold-3: #4f94c4; --ws-seq-cold-4: #8cc7ea;
+  --theme-foreground: #ffffff;
+  --theme-background-a: #1f1428;
+  --theme-background-b: #1f1428;
+  --theme-foreground-focus: #fabe21;
+  color-scheme: dark;
+}
+#observablehq-main { max-width: 1280px; }
+.ws-header h1 { margin: 0.1em 0 0.2em; max-width: none; }
+.ws-eyebrow { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ws-purple); }
+.ws-lede { margin: 0 0 20px; color: var(--ws-muted); max-width: 70ch; }
+.ws-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.ws-card { grid-column: span var(--span); min-width: 0; padding: 16px 20px; background: var(--ws-surface); border: 1px solid var(--ws-border); border-radius: 12px; }
+.ws-card-metric { border-top: 4px solid var(--ws-gold); }
+.ws-card-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--ws-deep); max-width: none; }
+.ws-card-description { margin: 0 0 10px; font-size: 13px; color: var(--ws-muted); max-width: none; }
+.ws-card-details { margin-top: 10px; }
+.ws-card-details > summary { font-size: 13px; font-weight: 600; color: var(--ws-purple); cursor: pointer; list-style: revert; }
+.ws-card-details > summary:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .ws-card-details > summary:focus-visible { outline-color: var(--ws-gold); }
+.ws-card-details > .ws-card-description { margin: 8px 0 0; }
+.ws-metric { font-size: 40px; font-weight: 700; line-height: 1.1; color: #161616; }
+html[data-theme="dark"] .ws-metric { color: #ffffff; }
+.ws-metric-text { font-size: 22px; }
+.ws-empty { color: var(--ws-muted); font-style: italic; margin: 0; }
+
+.ws-calendar-range { margin: 0 0 4px; font-size: 12px; color: var(--ws-muted); }
+.ws-legend { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; color: var(--ws-muted); }
+.ws-legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+.ws-legend-label { margin: 0 4px; }
+
+.ws-sparkline-total { margin: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--ws-deep); }
+
+.ws-footnote { font-size: 13px; color: var(--ws-muted); max-width: none; }
+
+/* Theme toggle -- a plain pill button whose own label text swaps between
+   "Dark mode"/"Light mode" (not a switch), matching every other dashboard's
+   toggle on this site. */
+.ws-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--ws-border);
+  border-radius: 999px;
+  background: var(--ws-surface);
+  color: var(--ws-deep);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.ws-theme-toggle:hover { border-color: var(--ws-purple); }
+html[data-theme="dark"] .ws-theme-toggle:hover { border-color: var(--ws-gold); }
+.ws-theme-toggle:focus-visible { outline: 2px solid #8837ef; outline-offset: 2px; }
+html[data-theme="dark"] .ws-theme-toggle:focus-visible { outline-color: var(--ws-gold); }
+@media (prefers-reduced-motion: reduce) {
+  .ws-theme-toggle { transition: none; }
+}
+
+@media (max-width: 760px) {
+  .ws-row { grid-template-columns: 1fr; }
+  .ws-card { grid-column: 1 / -1; }
+}
