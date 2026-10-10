@@ -69,7 +69,12 @@ html[data-theme="dark"] .ws-metric { color: #ffffff; }
 .ws-metric-text { font-size: 22px; }
 .ws-empty { color: var(--ws-muted); font-style: italic; margin: 0; }
 
-.ws-calendar-range { margin: 0 0 4px; font-size: 12px; color: var(--ws-muted); }
+/* The calendar is a fixed-size compact mosaic (GitHub-contributions-graph
+   proportions), not stretched to fill the card -- this scrolls it
+   horizontally on a card narrower than the grid's natural width, instead
+   of squashing the cells, the same fallback the real GitHub graph uses on
+   a narrow phone screen. */
+.ws-calendar-scroll { overflow-x: auto; }
 .ws-legend { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; color: var(--ws-muted); }
 .ws-legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
 .ws-legend-label { margin: 0 4px; }

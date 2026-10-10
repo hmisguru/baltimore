@@ -55,15 +55,20 @@ function parseUTCDate(iso) {
 
 const utcDateLabel = (d) => d.toLocaleDateString("en-US", {timeZone: "UTC", month: "short", day: "numeric", year: "numeric"});
 
-// Calendar heatmap: a GitHub-contributions-style grid, one column per
-// calendar week (Sun-Sat), aligned to the Sunday on/before the first date in
-// the data so week boundaries read as real weeks, not an arbitrary 7-day
-// chunking from the season's own start date. Color is a 5-bin sequential
-// ramp (dataviz skill: "sequential = one hue, light->dark"), 0 getting its
-// own dedicated step rather than folding into the lowest nonzero bin --
-// Winter Shelter is only "activated" on specific nights, so most of the
-// season is genuinely 0, and that should read as visually distinct from "a
-// little activity," not just the palest shade of it.
+// Calendar heatmap: an authentic GitHub-contributions-graph layout, not
+// just GitHub-flavored -- fixed small square cells (not stretched to fill
+// the card), month labels across the top, and only Mon/Wed/Fri labeled on
+// the weekday axis, matching the real thing's own compact proportions
+// rather than this dashboard's earlier blocky, container-width-stretched
+// version. One column per calendar week (Sun-Sat), aligned to the Sunday
+// on/before the first date in the data so week boundaries read as real
+// weeks, not an arbitrary 7-day chunking from the season's own start date.
+// Color is a 5-bin sequential ramp (dataviz skill: "sequential = one hue,
+// light->dark"), 0 getting its own dedicated step rather than folding into
+// the lowest nonzero bin -- Winter Shelter is only "activated" on specific
+// nights, so most of the season is genuinely 0, and that should read as
+// visually distinct from "a little activity," not just the palest shade of
+// it.
 function renderCalendar(widget, rows, rampClass) {
   if (!rows.length) return empty();
   const xField = widget.x.field;
@@ -71,16 +76,29 @@ function renderCalendar(widget, rows, rampClass) {
   const dates = rows.map((r) => parseUTCDate(r[xField]));
   const gridStart = new Date(dates[0]);
   gridStart.setUTCDate(gridStart.getUTCDate() - gridStart.getUTCDay());
+  const weekOf = (d) => Math.floor((d - gridStart) / 86400000 / 7);
 
   const max = Math.max(...rows.map((r) => r[valueField] ?? 0), 0);
   const bin = (v) => (!v || v <= 0 ? 0 : Math.min(4, Math.ceil((v / max) * 4)));
 
   const cells = rows.map((r, i) => {
     const d = dates[i];
-    const week = Math.floor((d - gridStart) / 86400000 / 7);
-    return {week, weekday: WEEKDAYS[d.getUTCDay()], value: r[valueField] ?? 0, label: utcDateLabel(d), bin: bin(r[valueField])};
+    return {week: weekOf(d), weekday: WEEKDAYS[d.getUTCDay()], value: r[valueField] ?? 0, label: utcDateLabel(d), bin: bin(r[valueField])};
   });
   const weekCount = Math.max(...cells.map((c) => c.week)) + 1;
+
+  // One short label at the first week column where each new month appears
+  // -- the detail that actually reads as "GitHub-style" at a glance.
+  const monthFmt = (d) => d.toLocaleDateString("en-US", {timeZone: "UTC", month: "short"});
+  const monthLabels = [];
+  let lastMonth = null;
+  for (const d of dates) {
+    const m = d.getUTCMonth();
+    if (m !== lastMonth) {
+      monthLabels.push({week: weekOf(d), label: monthFmt(d)});
+      lastMonth = m;
+    }
+  }
 
   const fmt = Number.isInteger(max) ? d3format(",~f") : d3format(",.1f");
   const isCold = valueField === "degrees_below_freezing";
@@ -93,15 +111,30 @@ function renderCalendar(widget, rows, rampClass) {
   // title; the cold calendar's bare "max 36.4" isn't (36.4 what?), so it
   // gets the same unit spelled out here, per explicit request.
   const legendMax = isCold ? `${fmt(max)} below freezing` : fmt(max);
-  const chart = resize((width) => Plot.plot({
-    width,
-    height: 36 * WEEKDAYS.length + 20,
-    marginLeft: 36,
-    marginTop: 4,
-    marginBottom: 4,
+
+  // GitHub's own graph is a fixed-size compact mosaic, not stretched to
+  // fill its container -- so this is a plain (non-resize) Plot at a
+  // natural pixel size, wrapped in a horizontally-scrolling container as
+  // the fallback for a card narrower than that (same behavior the real
+  // GitHub graph has on a narrow phone screen).
+  const cellUnit = 13;
+  const marginLeft = 28;
+  const marginRight = 4;
+  const marginTop = 16;
+  const marginBottom = 2;
+  const chart = Plot.plot({
+    width: marginLeft + weekCount * cellUnit + marginRight,
+    height: marginTop + WEEKDAYS.length * cellUnit + marginBottom,
+    marginLeft,
+    marginRight,
+    marginTop,
+    marginBottom,
     x: {domain: Array.from({length: weekCount}, (_, i) => i), axis: null},
-    y: {domain: WEEKDAYS, label: null, tickSize: 0},
+    // Only Mon/Wed/Fri labeled, same compact weekday axis GitHub's own
+    // graph uses -- labeling all 7 at this cell size crowds the margin.
+    y: {domain: WEEKDAYS, label: null, tickSize: 0, tickFormat: (d) => (["Mon", "Wed", "Fri"].includes(d) ? d : "")},
     marks: [
+      Plot.text(monthLabels, {x: "week", text: "label", frameAnchor: "top", dy: -6, fontSize: 10, fill: "var(--ws-muted)"}),
       // `title` must be a mark channel (not nested inside `tip`) for Plot to
       // show it as the hover tooltip's text -- tip: true alone, with no
       // title channel, falls back to showing x/y as bare numbers, which is
@@ -116,11 +149,10 @@ function renderCalendar(widget, rows, rampClass) {
         tip: true
       })
     ]
-  }));
+  });
 
   return html`<div>
-    <p class="ws-calendar-range">${utcDateLabel(dates[0])} – ${utcDateLabel(dates[dates.length - 1])}</p>
-    ${chart}
+    <div class="ws-calendar-scroll">${chart}</div>
     <div class="ws-legend">
       <span class="ws-legend-label">Fewer</span>
       ${[0, 1, 2, 3, 4].map((b) => html`<span class="ws-legend-swatch" style=${`background:var(--ws-${rampClass}-${b})`}></span>`)}
