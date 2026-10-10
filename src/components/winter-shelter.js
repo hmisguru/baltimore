@@ -122,8 +122,9 @@ function renderCalendar(widget, rows, rampClass) {
   const marginRight = 4;
   const marginTop = 16;
   const marginBottom = 2;
+  const totalWidth = marginLeft + weekCount * cellUnit + marginRight;
   const chart = Plot.plot({
-    width: marginLeft + weekCount * cellUnit + marginRight,
+    width: totalWidth,
     height: marginTop + WEEKDAYS.length * cellUnit + marginBottom,
     marginLeft,
     marginRight,
@@ -151,7 +152,13 @@ function renderCalendar(widget, rows, rampClass) {
     ]
   });
 
-  return html`<div>
+  // The grid's own fixed pixel width is almost always narrower than the
+  // card -- centered as a block (margin: 0 auto) rather than left, so the
+  // authentic GitHub-sized mosaic doesn't read as stranded in a mostly-
+  // empty card. A card narrower than the grid just overflows from the left
+  // edge as usual (margin: auto collapses to 0), so the .ws-calendar-scroll
+  // horizontal-scroll fallback for narrow viewports still works unchanged.
+  return html`<div class="ws-calendar-wrap" style=${`width:${totalWidth}px`}>
     <div class="ws-calendar-scroll">${chart}</div>
     <div class="ws-legend">
       <span class="ws-legend-label">Fewer</span>
