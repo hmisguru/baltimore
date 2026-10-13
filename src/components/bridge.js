@@ -88,7 +88,12 @@ function renderLine(widget, rows) {
     width,
     height: 320,
     marginLeft: 56,
-    x: {type: "point", domain: uniq(rows, x), label: widget.x.title ?? null, padding: 0.3},
+    // marginBottom raised from the default to fit -35deg-rotated quarter
+    // labels ("2024 Q1") without clipping against the bottom of the
+    // chart's own SVG -- same fix and same margin as city-performance.js's
+    // trend chart, whose "CFY27 Q1" labels are the same length.
+    marginBottom: 48,
+    x: {type: "point", domain: uniq(rows, x), label: widget.x.title ?? null, padding: 0.3, tickRotate: -35},
     y: {grid: true, zero: true, label: widget.y.title ?? null, tickFormat: fmt},
     color: color ? colorScale(uniq(rows, color)) : undefined,
     marks: [
