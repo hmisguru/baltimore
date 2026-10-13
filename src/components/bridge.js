@@ -6,9 +6,10 @@
 import * as Plot from "npm:@observablehq/plot";
 import {format as d3format} from "npm:d3-format";
 import {marked} from "npm:marked";
-import {html} from "npm:htl";
+import {html, svg} from "npm:htl";
 import * as Inputs from "npm:@observablehq/inputs";
 import {hierarchy, treemap as d3treemap} from "npm:d3-hierarchy";
+import {pie as d3pie, arc as d3arc} from "npm:d3-shape";
 import {resize} from "observablehq:stdlib";
 
 // Validated categorical palette (dataviz skill reference instance), assigned
@@ -88,7 +89,12 @@ function renderLine(widget, rows) {
     width,
     height: 320,
     marginLeft: 56,
-    x: {type: "point", domain: uniq(rows, x), label: widget.x.title ?? null, padding: 0.3},
+    // marginBottom raised from the default to fit -35deg-rotated quarter
+    // labels ("2024 Q1") without clipping against the bottom of the
+    // chart's own SVG -- same fix and same margin as city-performance.js's
+    // trend chart, whose "CFY27 Q1" labels are the same length.
+    marginBottom: 48,
+    x: {type: "point", domain: uniq(rows, x), label: widget.x.title ?? null, padding: 0.3, tickRotate: -35},
     y: {grid: true, zero: true, label: widget.y.title ?? null, tickFormat: fmt},
     color: color ? colorScale(uniq(rows, color)) : undefined,
     marks: [
@@ -137,6 +143,113 @@ function renderPie(widget, rows) {
       Plot.text(sorted, {y: label, x: value, text: (d) => `${fmt(d[value])} (${pct(d[value] / total)})`, textAnchor: "start", dx: 6, fill: "currentColor"})
     ]
   }));
+}
+
+// Age (Demographics) renders as a stacked histogram instead, per explicit
+// request -- x = age bracket, y = people served, color = household type
+// stacked within each bar, the classic "triple variable histogram" shape
+// (grouped/clustered side-by-side bars at first, switched to stacked on a
+// follow-up request). This widget's own
+// SQL already scopes to whichever single household type the page's filter
+// has selected (or "All"), so getting all three types on screen at once
+// means pulling this SAME widget's precomputed rows for each of the 3
+// household-type filter values directly out of bridge.results (all 12
+// filter combinations are already in bridge.json -- see bridge.json.py --
+// so this needs no new query), not the single rows the normal
+// widgetRows(bridge, widget, filterValues) call in renderWidget would
+// return for whatever's currently selected. That means it's special-cased
+// ahead of renderWidget's normal rows/dispatch logic entirely (see there),
+// not just added as another widget.chart branch.
+const AGE_HISTOGRAM_WIDGET_NAME = "Age of People Served — Current Quarter";
+const AGE_HOUSEHOLD_TYPES = ["Adults Only", "Families with Children", "Unaccompanied Minors"];
+// The dashboard's own age bracket names ("17 year-olds who turned 18") are
+// far too long to fit as 12 side-by-side cluster labels -- display-only
+// population-pyramid-style short forms (never touching balbridge.yml) fix
+// that without resorting to rotated labels, which would still overlap at
+// this many clusters. Full names still show in the hover tip.
+const AGE_ORDER = ["<1", "1 to 2", "3 to 5", "6 to 17", "17 year-olds who turned 18", "18 to 21", "22 to 24", "25 to 34", "35 to 44", "45 to 54", "55 to 64", "65 and Older"];
+const AGE_SHORT_LABELS = {
+  "<1": "<1", "1 to 2": "1–2", "3 to 5": "3–5", "6 to 17": "6–17",
+  "17 year-olds who turned 18": "17→18", "18 to 21": "18–21", "22 to 24": "22–24",
+  "25 to 34": "25–34", "35 to 44": "35–44", "45 to 54": "45–54",
+  "55 to 64": "55–64", "65 and Older": "65+"
+};
+
+function renderAgeHistogram(bridge, widget, filterValues) {
+  const label = widget.label, value = widget.value.field;
+  const fmt = numberFormat(widget.value.format);
+  const projectValue = filterValues[1];
+  const data = AGE_HOUSEHOLD_TYPES.flatMap((householdType) =>
+    widgetRows(bridge, widget, [householdType, projectValue]).map((r) => ({...r, household_type: householdType}))
+  );
+  if (!data.length) return empty();
+  const ageOrder = AGE_ORDER.filter((a) => data.some((d) => d[label] === a));
+  // Stacked, not grouped/clustered -- per explicit request. Same
+  // Plot.barY(Plot.stackY(...)) pattern renderBar() already uses elsewhere
+  // on this dashboard (stackY keeps the per-segment value, not the
+  // cumulative total, as the tip's own "y" channel).
+  const chart = resize((width) => Plot.plot({
+    width,
+    height: 340,
+    marginLeft: 56,
+    x: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, padding: 0.3},
+    y: {grid: true, label: "People served", tickFormat: numberFormat(",.0f")},
+    color: colorScale(AGE_HOUSEHOLD_TYPES),
+    marks: [
+      Plot.barY(data, Plot.stackY({
+        x: label,
+        y: value,
+        fill: "household_type",
+        order: AGE_HOUSEHOLD_TYPES,
+        channels: {Age: label, "Household type": "household_type"},
+        tip: {format: {x: false, fill: false, Age: true, "Household type": true, y: fmt}}
+      })),
+      Plot.ruleY([0])
+    ]
+  }));
+  return html`<div>
+    <p class="bridge-chart-note">The <strong>Household type</strong> filter does not apply to this chart -- it always breaks out every household type.</p>
+    ${chart}
+  </div>`;
+}
+
+// Race and Ethnicity on Demographics render as donuts instead, per explicit
+// request -- every other `chart: pie` widget on this dashboard stays
+// renderPie's sorted-horizontal-bars (lengths compare more accurately than
+// angles), so this is a deliberate override of two named widgets, not a
+// dashboard-wide reversal of that choice. Plot has no arc/pie mark (not
+// exported by the pinned @observablehq/plot version), so this hand-builds
+// the wedges with d3-shape's own pie()/arc() generators and emits raw SVG
+// via htl's `svg` tag -- the same "Plot can't draw this layout" situation
+// renderTreemap is already in, just with nothing in Plot able to draw the
+// result at all (there, d3-hierarchy only computes positions that
+// Plot.rect then draws).
+const DONUT_WIDGET_NAMES = new Set(["Race of People Served — Current Quarter", "Ethnicity of People Served — Current Quarter"]);
+
+function renderDonut(widget, rows) {
+  if (!rows.length) return empty();
+  const label = widget.label, value = widget.value.field;
+  const fmt = numberFormat(widget.value.format);
+  const total = rows.reduce((s, d) => s + (d[value] ?? 0), 0);
+  const pct = d3format(".0%");
+  const sorted = [...rows].sort((a, b) => b[value] - a[value]);
+  const colors = SERIES.slice(0, sorted.length);
+
+  return resize((width) => {
+    const size = Math.min(width, 280);
+    const radius = size / 2 - 2;
+    const inner = radius * 0.62;
+    const arcs = d3pie().value((d) => d[value]).sort(null)(sorted);
+    const arcGen = d3arc().innerRadius(inner).outerRadius(radius);
+    const wedges = arcs.map((a, i) => svg`<path d=${arcGen(a)} fill=${colors[i]} stroke="var(--bridge-surface)" stroke-width="2"><title>${sorted[i][label]}: ${fmt(sorted[i][value])} (${pct(sorted[i][value] / total)})</title></path>`);
+    const chart = svg`<svg viewBox=${`0 0 ${size} ${size}`} width=${size} height=${size} role="img" aria-label=${`${widget.name}: ${sorted.map((d) => `${d[label]} ${pct(d[value] / total)}`).join(", ")}`}>
+      <g transform=${`translate(${size / 2},${size / 2})`}>${wedges}</g>
+      <text x=${size / 2} y=${size / 2 - 6} text-anchor="middle" font-size="22" font-weight="700" fill="currentColor">${fmt(total)}</text>
+      <text x=${size / 2} y=${size / 2 + 14} text-anchor="middle" font-size="12" fill="var(--bridge-muted)">total</text>
+    </svg>`;
+    const legend = html`<ul class="bridge-donut-legend">${sorted.map((d, i) => html`<li><span class="bridge-donut-swatch" style=${`background:${colors[i]}`}></span>${d[label]} — ${fmt(d[value])} (${pct(d[value] / total)})</li>`)}</ul>`;
+    return html`<div class="bridge-donut">${chart}${legend}</div>`;
+  });
 }
 
 // True treemap: d3-hierarchy computes the rectangle layout (Plot has no
@@ -339,17 +452,29 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 const SPAN_OVERRIDES = {};
 
 function renderWidget(bridge, widget, filterValues) {
-  const rows = widgetRows(bridge, widget, filterValues);
   let body;
-  if (widget.type === "text") body = renderText(widget);
-  else if (widget.type === "metric") body = renderMetric(widget, rows);
-  else if (widget.type === "table") body = renderTable(widget, rows);
-  else if (!rows.length) body = empty();
-  else if (widget.chart === "line") body = renderLine(widget, rows);
-  else if (widget.chart === "bar") body = renderBar(widget, rows);
-  else if (widget.chart === "pie") body = renderPie(widget, rows);
-  else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
-  else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
+  // Special-cased ahead of the normal rows/dispatch logic below, not added
+  // as another widget.chart === "pie" branch -- this widget ignores the
+  // currently selected household-type filter entirely (it shows all three
+  // at once instead), so gating it on `!rows.length` for whatever's
+  // currently selected (the generic path just below) would be wrong: a
+  // project-type filter with zero people in the CURRENTLY selected
+  // household type would blank the chart even when other household types
+  // still have data to show.
+  if (widget.name === AGE_HISTOGRAM_WIDGET_NAME) {
+    body = renderAgeHistogram(bridge, widget, filterValues);
+  } else {
+    const rows = widgetRows(bridge, widget, filterValues);
+    if (widget.type === "text") body = renderText(widget);
+    else if (widget.type === "metric") body = renderMetric(widget, rows);
+    else if (widget.type === "table") body = renderTable(widget, rows);
+    else if (!rows.length) body = empty();
+    else if (widget.chart === "line") body = renderLine(widget, rows);
+    else if (widget.chart === "bar") body = renderBar(widget, rows);
+    else if (widget.chart === "pie") body = DONUT_WIDGET_NAMES.has(widget.name) ? renderDonut(widget, rows) : renderPie(widget, rows);
+    else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
+    else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
+  }
 
   const isNote = widget.type === "text";
   const span = SPAN_OVERRIDES[widget.name] ?? widget.col ?? 12;
