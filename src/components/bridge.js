@@ -6,9 +6,10 @@
 import * as Plot from "npm:@observablehq/plot";
 import {format as d3format} from "npm:d3-format";
 import {marked} from "npm:marked";
-import {html} from "npm:htl";
+import {html, svg} from "npm:htl";
 import * as Inputs from "npm:@observablehq/inputs";
 import {hierarchy, treemap as d3treemap} from "npm:d3-hierarchy";
+import {pie as d3pie, arc as d3arc} from "npm:d3-shape";
 import {resize} from "observablehq:stdlib";
 
 // Validated categorical palette (dataviz skill reference instance), assigned
@@ -142,6 +143,45 @@ function renderPie(widget, rows) {
       Plot.text(sorted, {y: label, x: value, text: (d) => `${fmt(d[value])} (${pct(d[value] / total)})`, textAnchor: "start", dx: 6, fill: "currentColor"})
     ]
   }));
+}
+
+// Race and Ethnicity on Demographics render as donuts instead, per explicit
+// request -- every other `chart: pie` widget on this dashboard stays
+// renderPie's sorted-horizontal-bars (lengths compare more accurately than
+// angles), so this is a deliberate override of two named widgets, not a
+// dashboard-wide reversal of that choice. Plot has no arc/pie mark (not
+// exported by the pinned @observablehq/plot version), so this hand-builds
+// the wedges with d3-shape's own pie()/arc() generators and emits raw SVG
+// via htl's `svg` tag -- the same "Plot can't draw this layout" situation
+// renderTreemap is already in, just with nothing in Plot able to draw the
+// result at all (there, d3-hierarchy only computes positions that
+// Plot.rect then draws).
+const DONUT_WIDGET_NAMES = new Set(["Race of People Served — Current Quarter", "Ethnicity of People Served — Current Quarter"]);
+
+function renderDonut(widget, rows) {
+  if (!rows.length) return empty();
+  const label = widget.label, value = widget.value.field;
+  const fmt = numberFormat(widget.value.format);
+  const total = rows.reduce((s, d) => s + (d[value] ?? 0), 0);
+  const pct = d3format(".0%");
+  const sorted = [...rows].sort((a, b) => b[value] - a[value]);
+  const colors = SERIES.slice(0, sorted.length);
+
+  return resize((width) => {
+    const size = Math.min(width, 280);
+    const radius = size / 2 - 2;
+    const inner = radius * 0.62;
+    const arcs = d3pie().value((d) => d[value]).sort(null)(sorted);
+    const arcGen = d3arc().innerRadius(inner).outerRadius(radius);
+    const wedges = arcs.map((a, i) => svg`<path d=${arcGen(a)} fill=${colors[i]} stroke="var(--bridge-surface)" stroke-width="2"><title>${sorted[i][label]}: ${fmt(sorted[i][value])} (${pct(sorted[i][value] / total)})</title></path>`);
+    const chart = svg`<svg viewBox=${`0 0 ${size} ${size}`} width=${size} height=${size} role="img" aria-label=${`${widget.name}: ${sorted.map((d) => `${d[label]} ${pct(d[value] / total)}`).join(", ")}`}>
+      <g transform=${`translate(${size / 2},${size / 2})`}>${wedges}</g>
+      <text x=${size / 2} y=${size / 2 - 6} text-anchor="middle" font-size="22" font-weight="700" fill="currentColor">${fmt(total)}</text>
+      <text x=${size / 2} y=${size / 2 + 14} text-anchor="middle" font-size="12" fill="var(--bridge-muted)">total</text>
+    </svg>`;
+    const legend = html`<ul class="bridge-donut-legend">${sorted.map((d, i) => html`<li><span class="bridge-donut-swatch" style=${`background:${colors[i]}`}></span>${d[label]} — ${fmt(d[value])} (${pct(d[value] / total)})</li>`)}</ul>`;
+    return html`<div class="bridge-donut">${chart}${legend}</div>`;
+  });
 }
 
 // True treemap: d3-hierarchy computes the rectangle layout (Plot has no
@@ -352,7 +392,7 @@ function renderWidget(bridge, widget, filterValues) {
   else if (!rows.length) body = empty();
   else if (widget.chart === "line") body = renderLine(widget, rows);
   else if (widget.chart === "bar") body = renderBar(widget, rows);
-  else if (widget.chart === "pie") body = renderPie(widget, rows);
+  else if (widget.chart === "pie") body = DONUT_WIDGET_NAMES.has(widget.name) ? renderDonut(widget, rows) : renderPie(widget, rows);
   else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
   else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
 
