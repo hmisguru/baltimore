@@ -145,9 +145,11 @@ function renderPie(widget, rows) {
   }));
 }
 
-// Age (Demographics) renders as a grouped/clustered histogram instead, per
-// explicit request -- x = age bracket, y = people served, color = household
-// type, the classic "triple variable histogram" shape. This widget's own
+// Age (Demographics) renders as a stacked histogram instead, per explicit
+// request -- x = age bracket, y = people served, color = household type
+// stacked within each bar, the classic "triple variable histogram" shape
+// (grouped/clustered side-by-side bars at first, switched to stacked on a
+// follow-up request). This widget's own
 // SQL already scopes to whichever single household type the page's filter
 // has selected (or "All"), so getting all three types on screen at once
 // means pulling this SAME widget's precomputed rows for each of the 3
@@ -182,23 +184,26 @@ function renderAgeHistogram(bridge, widget, filterValues) {
   );
   if (!data.length) return empty();
   const ageOrder = AGE_ORDER.filter((a) => data.some((d) => d[label] === a));
+  // Stacked, not grouped/clustered -- per explicit request. Same
+  // Plot.barY(Plot.stackY(...)) pattern renderBar() already uses elsewhere
+  // on this dashboard (stackY keeps the per-segment value, not the
+  // cumulative total, as the tip's own "y" channel).
   const chart = resize((width) => Plot.plot({
     width,
     height: 340,
     marginLeft: 56,
-    fx: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, padding: 0.2},
-    x: {axis: null},
+    x: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, padding: 0.3},
     y: {grid: true, label: "People served", tickFormat: numberFormat(",.0f")},
     color: colorScale(AGE_HOUSEHOLD_TYPES),
     marks: [
-      Plot.barY(data, {
-        fx: label,
-        x: "household_type",
+      Plot.barY(data, Plot.stackY({
+        x: label,
         y: value,
         fill: "household_type",
+        order: AGE_HOUSEHOLD_TYPES,
         channels: {Age: label, "Household type": "household_type"},
-        tip: {format: {fx: false, x: false, fill: false, Age: true, "Household type": true, y: fmt}}
-      }),
+        tip: {format: {x: false, fill: false, Age: true, "Household type": true, y: fmt}}
+      })),
       Plot.ruleY([0])
     ]
   }));
