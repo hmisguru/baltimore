@@ -145,6 +145,69 @@ function renderPie(widget, rows) {
   }));
 }
 
+// Age (Demographics) renders as a grouped/clustered histogram instead, per
+// explicit request -- x = age bracket, y = people served, color = household
+// type, the classic "triple variable histogram" shape. This widget's own
+// SQL already scopes to whichever single household type the page's filter
+// has selected (or "All"), so getting all three types on screen at once
+// means pulling this SAME widget's precomputed rows for each of the 3
+// household-type filter values directly out of bridge.results (all 12
+// filter combinations are already in bridge.json -- see bridge.json.py --
+// so this needs no new query), not the single rows the normal
+// widgetRows(bridge, widget, filterValues) call in renderWidget would
+// return for whatever's currently selected. That means it's special-cased
+// ahead of renderWidget's normal rows/dispatch logic entirely (see there),
+// not just added as another widget.chart branch.
+const AGE_HISTOGRAM_WIDGET_NAME = "Age of People Served — Current Quarter";
+const AGE_HOUSEHOLD_TYPES = ["Adults Only", "Families with Children", "Unaccompanied Minors"];
+// The dashboard's own age bracket names ("17 year-olds who turned 18") are
+// far too long to fit as 12 side-by-side cluster labels -- display-only
+// population-pyramid-style short forms (never touching balbridge.yml) fix
+// that without resorting to rotated labels, which would still overlap at
+// this many clusters. Full names still show in the hover tip.
+const AGE_ORDER = ["<1", "1 to 2", "3 to 5", "6 to 17", "17 year-olds who turned 18", "18 to 21", "22 to 24", "25 to 34", "35 to 44", "45 to 54", "55 to 64", "65 and Older"];
+const AGE_SHORT_LABELS = {
+  "<1": "<1", "1 to 2": "1–2", "3 to 5": "3–5", "6 to 17": "6–17",
+  "17 year-olds who turned 18": "17→18", "18 to 21": "18–21", "22 to 24": "22–24",
+  "25 to 34": "25–34", "35 to 44": "35–44", "45 to 54": "45–54",
+  "55 to 64": "55–64", "65 and Older": "65+"
+};
+
+function renderAgeHistogram(bridge, widget, filterValues) {
+  const label = widget.label, value = widget.value.field;
+  const fmt = numberFormat(widget.value.format);
+  const projectValue = filterValues[1];
+  const data = AGE_HOUSEHOLD_TYPES.flatMap((householdType) =>
+    widgetRows(bridge, widget, [householdType, projectValue]).map((r) => ({...r, household_type: householdType}))
+  );
+  if (!data.length) return empty();
+  const ageOrder = AGE_ORDER.filter((a) => data.some((d) => d[label] === a));
+  const chart = resize((width) => Plot.plot({
+    width,
+    height: 340,
+    marginLeft: 56,
+    fx: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, padding: 0.2},
+    x: {axis: null},
+    y: {grid: true, label: "People served", tickFormat: numberFormat(",.0f")},
+    color: colorScale(AGE_HOUSEHOLD_TYPES),
+    marks: [
+      Plot.barY(data, {
+        fx: label,
+        x: "household_type",
+        y: value,
+        fill: "household_type",
+        channels: {Age: label, "Household type": "household_type"},
+        tip: {format: {fx: false, x: false, fill: false, Age: true, "Household type": true, y: fmt}}
+      }),
+      Plot.ruleY([0])
+    ]
+  }));
+  return html`<div>
+    <p class="bridge-chart-note">The <strong>Household type</strong> filter does not apply to this chart -- it always breaks out every household type.</p>
+    ${chart}
+  </div>`;
+}
+
 // Race and Ethnicity on Demographics render as donuts instead, per explicit
 // request -- every other `chart: pie` widget on this dashboard stays
 // renderPie's sorted-horizontal-bars (lengths compare more accurately than
@@ -384,17 +447,29 @@ function renderExitsSummary(metricWidget, trendWidget, metricRows, trendRows) {
 const SPAN_OVERRIDES = {};
 
 function renderWidget(bridge, widget, filterValues) {
-  const rows = widgetRows(bridge, widget, filterValues);
   let body;
-  if (widget.type === "text") body = renderText(widget);
-  else if (widget.type === "metric") body = renderMetric(widget, rows);
-  else if (widget.type === "table") body = renderTable(widget, rows);
-  else if (!rows.length) body = empty();
-  else if (widget.chart === "line") body = renderLine(widget, rows);
-  else if (widget.chart === "bar") body = renderBar(widget, rows);
-  else if (widget.chart === "pie") body = DONUT_WIDGET_NAMES.has(widget.name) ? renderDonut(widget, rows) : renderPie(widget, rows);
-  else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
-  else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
+  // Special-cased ahead of the normal rows/dispatch logic below, not added
+  // as another widget.chart === "pie" branch -- this widget ignores the
+  // currently selected household-type filter entirely (it shows all three
+  // at once instead), so gating it on `!rows.length` for whatever's
+  // currently selected (the generic path just below) would be wrong: a
+  // project-type filter with zero people in the CURRENTLY selected
+  // household type would blank the chart even when other household types
+  // still have data to show.
+  if (widget.name === AGE_HISTOGRAM_WIDGET_NAME) {
+    body = renderAgeHistogram(bridge, widget, filterValues);
+  } else {
+    const rows = widgetRows(bridge, widget, filterValues);
+    if (widget.type === "text") body = renderText(widget);
+    else if (widget.type === "metric") body = renderMetric(widget, rows);
+    else if (widget.type === "table") body = renderTable(widget, rows);
+    else if (!rows.length) body = empty();
+    else if (widget.chart === "line") body = renderLine(widget, rows);
+    else if (widget.chart === "bar") body = renderBar(widget, rows);
+    else if (widget.chart === "pie") body = DONUT_WIDGET_NAMES.has(widget.name) ? renderDonut(widget, rows) : renderPie(widget, rows);
+    else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
+    else body = html`<p class="bridge-empty">Unsupported widget type: ${widget.chart ?? widget.type}</p>`;
+  }
 
   const isNote = widget.type === "text";
   const span = SPAN_OVERRIDES[widget.name] ?? widget.col ?? 12;

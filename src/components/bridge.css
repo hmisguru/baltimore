@@ -72,6 +72,7 @@ html[data-theme="dark"] .bridge-table td { border-bottom-color: #4a3659; }
 .bridge-donut { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; }
 .bridge-donut-legend { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .bridge-donut-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.bridge-chart-note { margin: 0 0 10px; font-size: 12px; color: var(--bridge-muted); }
 .bridge-about { margin: 0 0 20px; padding: 16px 20px; background: #f3eef9; border: 1px solid #e0d4ee; border-left: 4px solid var(--bridge-purple); border-radius: 12px; }
 html[data-theme="dark"] .bridge-about { background: #3d2059; border-color: #502680; border-left-color: var(--bridge-purple); }
 .bridge-about-note + .bridge-about-note { margin-top: 12px; }
