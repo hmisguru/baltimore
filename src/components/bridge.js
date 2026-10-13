@@ -149,7 +149,7 @@ function renderLengthOfTimeChart(widget, rows) {
   select.addEventListener("input", () => draw(select.value));
   draw(select.value);
   return html`<div>
-    <p class="bridge-chart-note">Each pathway counts a different, increasingly inclusive mix of interim housing types toward a client's length of stay: <strong>ES/SH Only</strong> counts nights in Emergency Shelter and Safe Haven; <strong>ES/SH + TH</strong> adds Transitional Housing; <strong>ES/SH/TH + Days In Permanent Housing Search</strong> also adds time spent searching for and moving into permanent housing. Clients who pass through more housing types show a longer average under the more inclusive pathways.</p>
+    <p class="bridge-chart-note">Each pathway counts a different, increasingly inclusive mix of interim housing types toward a client's length of stay: <strong>ES/SH Only</strong> counts nights in Emergency Shelter and Safe Haven; <strong>ES/SH + TH</strong> adds Transitional Housing; <strong>ES/SH/TH + Days In Permanent Housing Search</strong> also adds time spent searching for and moving into permanent housing. Clients on that last pathway often show a shorter average than the other two, since their time searching for and moving into permanent housing is what ends their episode of homelessness.</p>
     <div class="bridge-controls">${select}</div>
     ${chartSlot}
   </div>`;
