@@ -106,6 +106,55 @@ function renderLine(widget, rows) {
   }));
 }
 
+// Length of Time's own line chart gets a "Pathway" filter instead of all 3
+// pathways superimposed as separate colored lines, per explicit request --
+// the 3 lines made it hard to tell that these are 3 different, increasingly
+// inclusive definitions of "length of stay" (same nested-definition shape
+// as HUD SPM 1a rows 2/3/4, which sql/m1_length_of_time.sql's own
+// row_labels -- "...ES-EE, ES-NbN, and SH" / "...and TH" / "...and PH" --
+// already compute elsewhere in this repo), not 3 separate client
+// populations. A plain client-side filter, not a page-level one: the
+// widget's own normal rows already carry all 3 pathways (color: measure in
+// the YAML), so this needs no new query, just re-rendering the chart into
+// a container div on each dropdown change -- the same self-contained
+// render(state)-in-a-closure pattern kpi.js's own MOHS-funded toggle uses.
+const LENGTH_OF_TIME_WIDGET_NAME = "Average days in the system over time";
+const PATHWAY_ORDER = ["ES/SH Only", "ES/SH + TH", "ES/SH/TH + Days In Permanent Housing Search"];
+const PATHWAY_DEFAULT = "ES/SH Only";
+
+function renderLengthOfTimeChart(widget, rows) {
+  if (!rows.length) return empty();
+  const x = widget.x.field, y = widget.y.field, color = widget.color.field;
+  const fmt = numberFormat(widget.y.format);
+  const pathways = PATHWAY_ORDER.filter((p) => rows.some((r) => r[color] === p));
+  const select = Inputs.select(pathways, {label: "Pathway", value: pathways.includes(PATHWAY_DEFAULT) ? PATHWAY_DEFAULT : pathways[0]});
+  const chartSlot = html`<div>`;
+  const draw = (pathway) => {
+    const filtered = rows.filter((r) => r[color] === pathway);
+    chartSlot.replaceChildren(resize((width) => Plot.plot({
+      width,
+      height: 320,
+      marginLeft: 56,
+      marginBottom: 48,
+      x: {type: "point", domain: uniq(filtered, x), label: widget.x.title ?? null, padding: 0.3, tickRotate: -35},
+      y: {grid: true, zero: true, label: widget.y.title ?? null, tickFormat: fmt},
+      marks: [
+        Plot.ruleY([0]),
+        Plot.lineY(filtered, {x, y, stroke: SERIES[0], strokeWidth: 2}),
+        Plot.dot(filtered, {x, y, fill: SERIES[0], r: 4, stroke: "var(--theme-background)", strokeWidth: 2}),
+        Plot.tip(filtered, Plot.pointer({x, y, channels: {[widget.y.title ?? y]: y}, format: {y: false, x: true, [widget.y.title ?? y]: fmt}}))
+      ]
+    })));
+  };
+  select.addEventListener("input", () => draw(select.value));
+  draw(select.value);
+  return html`<div>
+    <p class="bridge-chart-note">Each pathway counts a different, increasingly inclusive mix of interim housing types toward a client's length of stay: <strong>ES/SH Only</strong> counts nights in Emergency Shelter and Safe Haven; <strong>ES/SH + TH</strong> adds Transitional Housing; <strong>ES/SH/TH + Days In Permanent Housing Search</strong> also adds time spent searching for and moving into permanent housing. Clients who pass through more housing types show a longer average under the more inclusive pathways.</p>
+    <div class="bridge-controls">${select}</div>
+    ${chartSlot}
+  </div>`;
+}
+
 function renderBar(widget, rows) {
   const x = widget.x.field, y = widget.y.field, color = widget.color?.field;
   const fmt = numberFormat(widget.y.format);
@@ -469,7 +518,7 @@ function renderWidget(bridge, widget, filterValues) {
     else if (widget.type === "metric") body = renderMetric(widget, rows);
     else if (widget.type === "table") body = renderTable(widget, rows);
     else if (!rows.length) body = empty();
-    else if (widget.chart === "line") body = renderLine(widget, rows);
+    else if (widget.chart === "line") body = widget.name === LENGTH_OF_TIME_WIDGET_NAME ? renderLengthOfTimeChart(widget, rows) : renderLine(widget, rows);
     else if (widget.chart === "bar") body = renderBar(widget, rows);
     else if (widget.chart === "pie") body = DONUT_WIDGET_NAMES.has(widget.name) ? renderDonut(widget, rows) : renderPie(widget, rows);
     else if (widget.chart === "treemap") body = renderTreemap(widget, rows);
