@@ -426,12 +426,30 @@ function styleFor(rules, v) {
 
 // Plain HTML tables: the dashboard's tables are small (at most a dozen or so
 // rows), so every row stays visible without an inner scroll area.
+// Priority Households, per explicit request: no "Indicator" column header,
+// and the row labels drop their trailing "household(s)" ("Age 55+
+// Households" -> "Age 55+") since the whole table is already households --
+// repeating that word in every row and the column header just adds
+// clutter. Display-only, inside the generic renderTable() below rather
+// than a separate renderer, since nothing else about this table's shape
+// needs to change -- same named-widget-override convention as
+// DONUT_WIDGET_NAMES/AGE_HISTOGRAM_WIDGET_NAME above (including for the
+// DV Survivor Households row bridge.json.py merges onto this same table:
+// the suffix strip is a plain regex on whatever indicator text shows up,
+// not a hardcoded list, so it applies there too with no extra code).
+const PRIORITY_HOUSEHOLDS_WIDGET_NAME = "Priority Households";
+
 function renderTable(widget, rows) {
   if (!rows.length) return empty();
+  const isPriorityHouseholds = widget.name === PRIORITY_HOUSEHOLDS_WIDGET_NAME;
   const cols = (widget.columns ?? Object.keys(rows[0]).map((name) => ({name}))).filter((c) => !c.hidden);
+  const headerText = (c) => (isPriorityHouseholds && c.name === "indicator" ? "" : c.label ?? c.name);
   const cell = (c, v) => {
     const fmt = c.number ? numberFormat(c.number) : null;
-    const text = v == null ? "—" : fmt && typeof v === "number" ? fmt(v) : v;
+    let text = v == null ? "—" : fmt && typeof v === "number" ? fmt(v) : v;
+    if (isPriorityHouseholds && c.name === "indicator" && typeof text === "string") {
+      text = text.replace(/\s+households?$/i, "");
+    }
     const rule = styleFor(c.format, v);
     if (!rule) return text;
     const bg = STATUS_COLORS[rule.backgroundColor] ?? rule.backgroundColor;
@@ -439,7 +457,7 @@ function renderTable(widget, rows) {
   };
   const align = (c) => `text-align:${c.align ?? "left"}`;
   return html`<div class="bridge-table-wrap"><table class="bridge-table">
-    <thead><tr>${cols.map((c) => html`<th scope="col" style=${align(c)}>${c.label ?? c.name}</th>`)}</tr></thead>
+    <thead><tr>${cols.map((c) => html`<th scope="col" style=${align(c)}>${headerText(c)}</th>`)}</tr></thead>
     <tbody>${rows.map((r) => html`<tr>${cols.map((c) => html`<td style=${align(c)}>${cell(c, r[c.name])}</td>`)}</tr>`)}</tbody>
   </table></div>`;
 }
