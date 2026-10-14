@@ -426,24 +426,36 @@ function styleFor(rules, v) {
 
 // Plain HTML tables: the dashboard's tables are small (at most a dozen or so
 // rows), so every row stays visible without an inner scroll area.
-// Priority Households, per explicit request: no "Indicator" column header,
-// and the row labels drop their trailing "household(s)" ("Age 55+
-// Households" -> "Age 55+") since the whole table is already households --
-// repeating that word in every row and the column header just adds
-// clutter. Display-only, inside the generic renderTable() below rather
-// than a separate renderer, since nothing else about this table's shape
+// No "Indicator" column header on any of this dashboard's QoQ detail
+// tables (Priority Households, Race/Ethnicity/Age of People Served), per
+// explicit request -- every one of these tables is a plain two-column
+// shape (an indicator name, then its own quarterly figures), so the
+// header added nothing the row values themselves don't already say.
+// Gated on the column's own name ("indicator") rather than a per-widget
+// list, since every `balbridge.yml` table that uses this column shape
+// should get the same treatment, including any added later.
+//
+// Priority Households additionally drops the trailing "household(s)" on
+// every row label ("Age 55+ Households" -> "Age 55+"), per explicit
+// request -- the whole table is already households, so repeating that
+// word in every row was redundant there specifically (Race/Ethnicity/Age
+// rows name actual categories, like "Black or African-American", that
+// don't end in that word, so no suffix-stripping applies to them).
+// Display-only, inside the generic renderTable() below rather than a
+// separate renderer, since nothing else about any of these tables' shape
 // needs to change -- same named-widget-override convention as
 // DONUT_WIDGET_NAMES/AGE_HISTOGRAM_WIDGET_NAME above (including for the
-// DV Survivor Households row bridge.json.py merges onto this same table:
-// the suffix strip is a plain regex on whatever indicator text shows up,
-// not a hardcoded list, so it applies there too with no extra code).
+// DV Survivor Households row bridge.json.py merges onto Priority
+// Households: the suffix strip is a plain regex on whatever indicator
+// text shows up there, not a hardcoded list, so it applies with no extra
+// code).
 const PRIORITY_HOUSEHOLDS_WIDGET_NAME = "Priority Households";
 
 function renderTable(widget, rows) {
   if (!rows.length) return empty();
   const isPriorityHouseholds = widget.name === PRIORITY_HOUSEHOLDS_WIDGET_NAME;
   const cols = (widget.columns ?? Object.keys(rows[0]).map((name) => ({name}))).filter((c) => !c.hidden);
-  const headerText = (c) => (isPriorityHouseholds && c.name === "indicator" ? "" : c.label ?? c.name);
+  const headerText = (c) => (c.name === "indicator" ? "" : c.label ?? c.name);
   const cell = (c, v) => {
     const fmt = c.number ? numberFormat(c.number) : null;
     let text = v == null ? "—" : fmt && typeof v === "number" ? fmt(v) : v;
