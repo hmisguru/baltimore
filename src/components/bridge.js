@@ -241,7 +241,14 @@ function renderAgeHistogram(bridge, widget, filterValues) {
     width,
     height: 340,
     marginLeft: 56,
-    x: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, padding: 0.3},
+    // marginBottom raised from the default to fit -35deg-rotated labels
+    // without clipping -- same fix and same margin as renderLine()'s own
+    // quarter labels elsewhere on this dashboard. Even AGE_SHORT_LABELS'
+    // already-compact forms ("17→18") still overlap each other at 12
+    // categories on a narrow mobile width, where resize() shrinks the
+    // plot well below what 12 even-short horizontal labels need.
+    marginBottom: 48,
+    x: {domain: ageOrder, label: "Age", tickFormat: (d) => AGE_SHORT_LABELS[d] ?? d, tickRotate: -35, padding: 0.3},
     y: {grid: true, label: "People served", tickFormat: numberFormat(",.0f")},
     color: colorScale(AGE_HOUSEHOLD_TYPES),
     marks: [
