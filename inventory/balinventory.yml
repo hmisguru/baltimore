@@ -289,7 +289,7 @@ rows:
   - widgets:
       - name: Current Inventory by Project Type
         type: pivot_table
-        description: "This is a pivot table: each project type has its household types nested underneath as rows. Beds / Units / Average Utilization appear as columns. \"Emergency Shelter\" combines both night-by-night and entry/exit tracked shelters (ProjectType 0 and 1). \"Safe Haven\" (ProjectType 8) is its own row, not folded into Other Permanent Housing -- it's crisis/temporary housing like ES, not a permanent housing type. \"Other Permanent Housing\" covers PH - Housing Only and PH - Housing with Services (ProjectType 9 and 10) only. If the household_type filter above is set to something other than \"All\", the other household-type rows will be empty, since the underlying data is already filtered down to just the selected type. Average Utilization is a MONTHLY AVERAGE, not a single-day snapshot: total occupied bed-nights during the calendar month containing the latest export date, divided by total available bed-nights (bed inventory x days that inventory record actually overlaps the month) for that PROJECT + HOUSEHOLD TYPE slice, and only for projects that participate in HMIS (HMISParticipation.HMISParticipationType = 1 as of the export date). Occupied bed-nights: night-by-night shelters (ProjectType 1) count one bed-night per bed-night service record within the month; entry/exit shelters, transitional housing, and Safe Haven (ProjectType 0, 2, 8) count days of active enrollment overlapping the month per person; RRH, PSH, and other permanent housing (ProjectType 13, 3, 9, 10) count days of active enrollment on or after the household's move-in date -- confirmed empirically that Safe Haven never populates MoveInDate or bed-night records in this dataset, so it uses the active-enrollment method instead, not the move-in-date one. Household type is still classified once, as of the export date, by the ages of each occupying household's actual co-occupying members (all under 18 = Unaccompanied Minors, a mix = Adults and Children, all 18+ = Adults Only, matching Inventory's own HouseholdType codes) -- not re-derived per day, to avoid ambiguity from a birthday falling mid-month. Non-participating projects don't track stays in HMIS at all, so their bed-nights would otherwise look artificially near-empty; instead their rate falls back to ClientTrack's HMISPITCount (dated Point-in-Time counts synced via CTAPI), approximated per household type -- AdultOnlyHouseholds/ChildOnlyHouseholds as clients (one person per household, since neither bucket reports its own client count), Adults and Children clients backed into as TotalClients minus the other two -- from the most recent PITDate on or before the export date, divided by that specific household type's own current bed inventory -- a single point-in-time ratio, not a monthly average, since a PIT count has no time dimension to average. A rate over 100% means more bed-nights were occupied than available for that slice -- shown as-is rather than capped, since it's a real over-capacity signal worth surfacing. When a cell combines more than one project, Average Utilization is a true bed-night-weighted rollup (SUM(occupied bed-nights)/SUM(available bed-nights) for every project in that cell), not an unweighted average of each project's own rate -- the underlying query pre-aggregates by GROUP BY to each pivot cell's exact grain, computing that weighted ratio directly in SQL rather than in the pivot. Beds and Units still show the current snapshot inventory (as of the export date), not a monthly average of bed counts."
+        description: "This is a pivot table: each project type has its household types nested underneath as rows. Beds / Units / Average Utilization appear as columns. \"Emergency Shelter\" combines both night-by-night and entry/exit tracked shelters (ProjectType 0 and 1). \"Safe Haven\" (ProjectType 8) is its own row, not folded into Other Permanent Housing -- it's crisis/temporary housing like ES, not a permanent housing type. \"Other Permanent Housing\" covers PH - Housing Only and PH - Housing with Services (ProjectType 9 and 10) only. If the household_type filter above is set to something other than \"All\", the other household-type rows will be empty, since the underlying data is already filtered down to just the selected type. Average Utilization is a MONTHLY AVERAGE, not a single-day snapshot: total occupied bed-nights during the calendar month containing the latest export date, divided by total available bed-nights (bed inventory x days that inventory record actually overlaps the month; for overflow inventory at night-by-night shelters, only the nights that project logged at least one bed-night, since overflow beds only open on activation nights) for that PROJECT + HOUSEHOLD TYPE slice, and only for projects that participate in HMIS (HMISParticipation.HMISParticipationType = 1 as of the export date). Occupied bed-nights: night-by-night shelters (ProjectType 1) count one bed-night per bed-night service record within the month; entry/exit shelters, transitional housing, and Safe Haven (ProjectType 0, 2, 8) count days of active enrollment overlapping the month per person; RRH, PSH, and other permanent housing (ProjectType 13, 3, 9, 10) count days of active enrollment on or after the household's move-in date -- confirmed empirically that Safe Haven never populates MoveInDate or bed-night records in this dataset, so it uses the active-enrollment method instead, not the move-in-date one. Household type is still classified once, as of the export date, by the ages of each occupying household's actual co-occupying members (all under 18 = Unaccompanied Minors, a mix = Adults and Children, all 18+ = Adults Only, matching Inventory's own HouseholdType codes) -- not re-derived per day, to avoid ambiguity from a birthday falling mid-month. Non-participating projects don't track stays in HMIS at all, so their bed-nights would otherwise look artificially near-empty; instead their rate falls back to ClientTrack's HMISPITCount (dated Point-in-Time counts synced via CTAPI), approximated per household type -- AdultOnlyHouseholds/ChildOnlyHouseholds as clients (one person per household, since neither bucket reports its own client count), Adults and Children clients backed into as TotalClients minus the other two -- from the most recent PITDate on or before the export date, divided by that specific household type's own current bed inventory -- a single point-in-time ratio, not a monthly average, since a PIT count has no time dimension to average. A rate over 100% means more bed-nights were occupied than available for that slice -- shown as-is rather than capped, since it's a real over-capacity signal worth surfacing. When a cell combines more than one project, Average Utilization is a true bed-night-weighted rollup (SUM(occupied bed-nights)/SUM(available bed-nights) for every project in that cell), not an unweighted average of each project's own rate -- the underlying query pre-aggregates by GROUP BY to each pivot cell's exact grain, computing that weighted ratio directly in SQL rather than in the pivot. Beds and Units still show the current snapshot inventory (as of the export date), not a monthly average of bed counts."
         sql: |
           WITH export_info AS (
             SELECT ExportEndDate FROM balhmiscsv.Export
@@ -310,7 +310,7 @@ rows:
           ),
           current_inventory AS (
             SELECT i.ProjectID, i.BedInventory, i.UnitInventory, i.HouseholdType, p.ProjectType,
-              i.InventoryStartDate, i.InventoryEndDate
+              i.InventoryStartDate, i.InventoryEndDate, i.Availability
             FROM balhmiscsv.Inventory i
             JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
             LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
@@ -483,18 +483,53 @@ rows:
               TotalClients - AdultOnlyHouseholds - ChildOnlyHouseholds AS approx_clients
             FROM latest_pitcount WHERE rn = 1
           ),
+          overflow_windows AS (
+            -- night-by-night ES overflow inventory (Availability = 3) records'
+            -- own date ranges; a NULL end date is open-ended
+            SELECT DISTINCT ci.ProjectID, ci.InventoryStartDate,
+              COALESCE(ci.InventoryEndDate, DATE '9999-12-31') AS inventory_end
+            FROM current_inventory ci
+            WHERE ci.Availability = 3 AND ci.ProjectType = 1
+          ),
+          overflow_activated_nights AS (
+            -- nights this month, within each overflow record's own dates, on which
+            -- its project logged at least one bed-night -- the only nights its
+            -- overflow beds were actually open
+            SELECT ow.ProjectID, ow.InventoryStartDate, ow.inventory_end,
+              COUNT(DISTINCT s.DateProvided) AS activated_nights
+            FROM overflow_windows ow
+            JOIN balhmiscsv.Enrollment en ON en.ProjectID = ow.ProjectID
+            JOIN balhmiscsv.Services s ON s.EnrollmentID = en.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND s.DateProvided BETWEEN GREATEST(tm.month_start, ow.InventoryStartDate)
+                                     AND LEAST(tm.month_end, ow.inventory_end)
+            GROUP BY 1, 2, 3
+          ),
           inventory_bed_nights AS (
             -- available bed-nights this month, clipped to the days this specific
             -- inventory record actually overlaps the month (handles a mid-month
-            -- inventory start/end without assuming a full month of availability)
+            -- inventory start/end without assuming a full month of availability).
+            -- Overflow beds at night-by-night shelters (Availability = 3,
+            -- ProjectType 1) count only on nights the project actually logged a
+            -- bed-night: their records span the whole season, but the beds only
+            -- open on activation nights.
             SELECT ci.ProjectID, ci.BedInventory, ci.UnitInventory, ci.HouseholdType, ci.ProjectType,
-              ci.BedInventory * GREATEST(0, DATE_DIFF(
-                LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
-                GREATEST(tm.month_start, ci.InventoryStartDate),
-                DAY
-              ) + 1) AS available_bed_nights
+              CASE
+                WHEN ci.Availability = 3 AND ci.ProjectType = 1
+                  THEN ci.BedInventory * COALESCE(oan.activated_nights, 0)
+                ELSE ci.BedInventory * GREATEST(0, DATE_DIFF(
+                  LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
+                  GREATEST(tm.month_start, ci.InventoryStartDate),
+                  DAY
+                ) + 1)
+              END AS available_bed_nights
             FROM current_inventory ci
             CROSS JOIN target_month tm
+            LEFT JOIN overflow_activated_nights oan
+              ON oan.ProjectID = ci.ProjectID
+              AND oan.InventoryStartDate = ci.InventoryStartDate
+              AND oan.inventory_end = COALESCE(ci.InventoryEndDate, DATE '9999-12-31')
           ),
           rated_inventory AS (
             SELECT
@@ -572,7 +607,7 @@ rows:
   - widgets:
       - name: Current Inventory by Project
         type: pivot_table
-        description: "Same data as \"Current Inventory by Project Type\" above, but broken down by specific project (name, not ID) instead of household type -- household type is left out entirely. Beds / Units / Average Utilization appear as columns, nested under each project type. Average Utilization is the same monthly bed-night average (occupied bed-nights / available bed-nights during the calendar month containing the latest export date, using the identical per-project-type occupancy logic -- bed-night for ProjectType 1, active enrollment for ProjectType 0/2/8, move-in date for ProjectType 13/3/9/10, HMISPITCount fallback for non-HMIS-participating projects) and the same bed-night-weighted rollup as the project-type view -- a project's Average Utilization here already correctly combines all its household-type inventory rows (e.g. Adults Only + Adults and Children beds) into one true occupied/available ratio for that project."
+        description: "Same data as \"Current Inventory by Project Type\" above, but broken down by specific project (name, not ID) instead of household type -- household type is left out entirely. Beds / Units / Average Utilization appear as columns, nested under each project type. Average Utilization is the same monthly bed-night average (occupied bed-nights / available bed-nights during the calendar month containing the latest export date, using the identical per-project-type occupancy logic and the same overflow-inventory rule for available bed-nights -- bed-night for ProjectType 1, active enrollment for ProjectType 0/2/8, move-in date for ProjectType 13/3/9/10, HMISPITCount fallback for non-HMIS-participating projects) and the same bed-night-weighted rollup as the project-type view -- a project's Average Utilization here already correctly combines all its household-type inventory rows (e.g. Adults Only + Adults and Children beds) into one true occupied/available ratio for that project."
         sql: |
           WITH export_info AS (
             SELECT ExportEndDate FROM balhmiscsv.Export
@@ -593,7 +628,7 @@ rows:
           ),
           current_inventory AS (
             SELECT i.ProjectID, i.BedInventory, i.UnitInventory, i.HouseholdType, p.ProjectType, p.ProjectName,
-              i.InventoryStartDate, i.InventoryEndDate
+              i.InventoryStartDate, i.InventoryEndDate, i.Availability
             FROM balhmiscsv.Inventory i
             JOIN balhmiscsv.Project p ON i.ProjectID = p.ProjectID
             LEFT JOIN hmis_participation hp ON hp.ProjectID = i.ProjectID
@@ -766,18 +801,53 @@ rows:
               TotalClients - AdultOnlyHouseholds - ChildOnlyHouseholds AS approx_clients
             FROM latest_pitcount WHERE rn = 1
           ),
+          overflow_windows AS (
+            -- night-by-night ES overflow inventory (Availability = 3) records'
+            -- own date ranges; a NULL end date is open-ended
+            SELECT DISTINCT ci.ProjectID, ci.InventoryStartDate,
+              COALESCE(ci.InventoryEndDate, DATE '9999-12-31') AS inventory_end
+            FROM current_inventory ci
+            WHERE ci.Availability = 3 AND ci.ProjectType = 1
+          ),
+          overflow_activated_nights AS (
+            -- nights this month, within each overflow record's own dates, on which
+            -- its project logged at least one bed-night -- the only nights its
+            -- overflow beds were actually open
+            SELECT ow.ProjectID, ow.InventoryStartDate, ow.inventory_end,
+              COUNT(DISTINCT s.DateProvided) AS activated_nights
+            FROM overflow_windows ow
+            JOIN balhmiscsv.Enrollment en ON en.ProjectID = ow.ProjectID
+            JOIN balhmiscsv.Services s ON s.EnrollmentID = en.EnrollmentID
+            CROSS JOIN target_month tm
+            WHERE s.RecordType = 200
+              AND s.DateProvided BETWEEN GREATEST(tm.month_start, ow.InventoryStartDate)
+                                     AND LEAST(tm.month_end, ow.inventory_end)
+            GROUP BY 1, 2, 3
+          ),
           inventory_bed_nights AS (
             -- available bed-nights this month, clipped to the days this specific
             -- inventory record actually overlaps the month (handles a mid-month
-            -- inventory start/end without assuming a full month of availability)
+            -- inventory start/end without assuming a full month of availability).
+            -- Overflow beds at night-by-night shelters (Availability = 3,
+            -- ProjectType 1) count only on nights the project actually logged a
+            -- bed-night: their records span the whole season, but the beds only
+            -- open on activation nights.
             SELECT ci.ProjectID, ci.ProjectName, ci.BedInventory, ci.UnitInventory, ci.HouseholdType, ci.ProjectType,
-              ci.BedInventory * GREATEST(0, DATE_DIFF(
-                LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
-                GREATEST(tm.month_start, ci.InventoryStartDate),
-                DAY
-              ) + 1) AS available_bed_nights
+              CASE
+                WHEN ci.Availability = 3 AND ci.ProjectType = 1
+                  THEN ci.BedInventory * COALESCE(oan.activated_nights, 0)
+                ELSE ci.BedInventory * GREATEST(0, DATE_DIFF(
+                  LEAST(tm.month_end, COALESCE(ci.InventoryEndDate, tm.month_end)),
+                  GREATEST(tm.month_start, ci.InventoryStartDate),
+                  DAY
+                ) + 1)
+              END AS available_bed_nights
             FROM current_inventory ci
             CROSS JOIN target_month tm
+            LEFT JOIN overflow_activated_nights oan
+              ON oan.ProjectID = ci.ProjectID
+              AND oan.InventoryStartDate = ci.InventoryStartDate
+              AND oan.inventory_end = COALESCE(ci.InventoryEndDate, DATE '9999-12-31')
           ),
           rated_inventory AS (
             SELECT
