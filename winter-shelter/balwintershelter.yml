@@ -1,4 +1,4 @@
-name: "Winter Shelter: FY2026 Season Review"
+name: "Winter Shelter Season In Action"
 description: Nightly check-in activity across Baltimore's Winter Shelter program.
 connection: clienttrack
 
@@ -6,14 +6,14 @@ rows:
   - widgets:
       - name: Winter Shelter Season
         type: metric
-        description: The Winter Shelter season this dashboard covers (Nov 1 - Mar 31). The SQL below still computes it dynamically from CURRENT_DATE('America/New_York') at query time, but this dashboard itself is not auto-renewed each year -- per this project's per-season design (see CLAUDE.md), a future season gets a freshly built dashboard once it closes on 3/31, rather than this "FY2026 Season Review" silently rolling forward into a new season's data.
+        description: The Winter Shelter season this dashboard covers (Nov 15 - Mar 31). The SQL below still computes it dynamically from CURRENT_DATE('America/New_York') at query time, but this dashboard itself is not auto-renewed each year -- per this project's per-season design (see CLAUDE.md), a future season gets a freshly built dashboard once it closes on 3/31, rather than this "Winter Shelter Season In Action" silently rolling forward into a new season's data.
         sql: |
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -34,9 +34,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -71,9 +71,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -101,9 +101,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -128,14 +128,14 @@ rows:
       - name: Nightly Check-Ins
         type: chart
         chart: calendar
-        description: Check-ins per night at the 3 Winter Shelter facilities (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 1 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only "activated" on specific nights (typically triggered by cold weather), so most of the season shows 0.
+        description: Check-ins per night at the 3 Winter Shelter facilities (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 15 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only "activated" on specific nights (typically triggered by cold weather), so most of the season shows 0.
         sql: |
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -173,9 +173,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -215,9 +215,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -254,9 +254,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -293,9 +293,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -332,9 +332,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -372,9 +372,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -411,9 +411,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -450,9 +450,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
@@ -489,9 +489,9 @@ rows:
           WITH season AS (
             SELECT
               CASE
-                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 1)
-                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 1)
+                WHEN CURRENT_DATE('America/New_York') >= DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                THEN DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')), 11, 15)
+                ELSE DATE(EXTRACT(YEAR FROM CURRENT_DATE('America/New_York')) - 1, 11, 15)
               END AS season_start
           ),
           season_bounds AS (
