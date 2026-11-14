@@ -1,4 +1,4 @@
-"""Observable Framework data loader: Winter Shelter: FY2026 Season Review.
+"""Observable Framework data loader: Winter Shelter Season In Action.
 
 Renders the DAC dashboard definition in winter-shelter/balwintershelter.yml
 statically: runs each widget's own SQL once at build time (the dashboard has
@@ -19,8 +19,8 @@ Per balwintershelter.yml's own header comment, this dashboard is NOT
 auto-renewed each season: the SQL still computes "the current/most recently
 completed season" dynamically from CURRENT_DATE('America/New_York') at
 query time, but a future season gets a freshly built dashboard once it
-closes on 3/31 rather than this "FY2026 Season Review" silently rolling
-forward -- see CLAUDE.md.
+closes on 3/31 rather than this "Winter Shelter Season In Action" silently
+rolling forward -- see CLAUDE.md.
 """
 
 import json

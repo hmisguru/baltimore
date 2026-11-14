@@ -1,4 +1,4 @@
-// Renders the Winter Shelter: FY2026 Season Review dashboard
+// Renders the Winter Shelter Season In Action dashboard
 // (winter-shelter/balwintershelter.yml) from the build-time results in
 // src/data/winter-shelter.json: one renderer per DAC widget type, driven by
 // each widget's own display config, patterned after coordinated-entry.js
@@ -224,11 +224,11 @@ function renderSparkline(widget, rows) {
 // specific facility count was reworded to "any Winter Shelter facility".
 // Keyed by widget name, like TITLE_OVERRIDES.
 const DESCRIPTION_OVERRIDES = {
-  "Winter Shelter Season": "The Winter Shelter season this dashboard covers (Nov 1 - Mar 31).",
+  "Winter Shelter Season": "The Winter Shelter season this dashboard covers (Nov 15 - Mar 31).",
   "Activation Nights": "Nights this season with at least 1 check-in logged in any Winter Shelter facility -- Winter Shelter is only \"activated\" on specific cold-weather nights, not every night of the season.",
   "Total Persons Sheltered": "Distinct clients (Service.ClientID) who checked in at least once at any Winter Shelter facility this season -- a person counted once regardless of how many nights they stayed.",
   "Total Bed Nights Provided": "Total check-in records (Service.ServiceID) at any Winter Shelter facility this season -- one bed night per person per night stayed, so a person with multiple stays is counted once per night.",
-  "Nightly Check-Ins": "Check-ins per night at any Winter Shelter facility (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 1 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only \"activated\" on specific nights (typically triggered by cold weather), so most of the season shows 0.",
+  "Nightly Check-Ins": "Check-ins per night at any Winter Shelter facility (HousingFacility.ProgramID 19902, 19872, 19998), for the current/most recently completed Winter Shelter season (Nov 15 - Mar 31). A GENERATE_DATE_ARRAY date spine guarantees every night in the season appears, including nights with 0 check-ins -- Winter Shelter is only \"activated\" on specific nights (typically triggered by cold weather), so most of the season shows 0.",
   // Trimmed per explicit request: drops the closing sentences about the
   // GENERATE_DATE_ARRAY date spine and weather.DailyBWI now being a
   // one-time FY2026-only snapshot -- internal build detail, not something
